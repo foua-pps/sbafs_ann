@@ -1,7 +1,6 @@
 import numpy as np
-import copy
 import os
-from sbafs_ann.train_sbaf_nn_lib import apply_network, tilted_loss
+from sbafs_ann.train_sbaf_nn_lib import apply_network
 
 
 def convert_to_vgac_with_nn(scene, SBAF_NN_DIR):

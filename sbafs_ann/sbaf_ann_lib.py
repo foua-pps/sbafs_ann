@@ -13,23 +13,11 @@ Copyright (c) 2023 Erik Johansson
 
 import numpy as np
 import netCDF4
-import copy
-
 from pyresample.geometry import SwathDefinition
-from pyresample.kd_tree import resample_nearest
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
-
-#: https://stackoverflow.com/questions/67779374/deprecationwarning-np-bool
-from warnings import filterwarnings
-import glob
 import datetime
-import time
-from scipy.stats import gaussian_kde
-import scipy
 import os
-# filterwarnings(action='ignore', category=DeprecationWarning, message='`np.bool` is a deprecated alias')
-# filterwarnings(action='ignore', category=DeprecationWarning, message='tostring() is deprecated.')
 
 
 class ConfigObj(object):
@@ -187,7 +175,7 @@ def cutEdges(obj, edg):
 
 def cutMasked(obj):
 
-    use = obj.mask == False
+    use = ~obj.mask
     for key in obj.channels:
         if obj.channels[key] is None:
             continue
@@ -203,7 +191,7 @@ def read_data(fname, cfg, exclude=[]):
     my_sat = netCDF4.Dataset(fname, 'r', format='NETCDF4')
     if cfg.accept_satz_max == 180:
         satza_masked = np.zeros(
-            my['satzenith'][0, :, :].data.shape).astype(bool)
+            my_sat['satzenith'][0, :, :].data.shape).astype(bool)
     else:
         satza_masked = my_sat['satzenith'][0, :, :].data > cfg.accept_satz_max
     if cfg.accept_sunz_max == 180:

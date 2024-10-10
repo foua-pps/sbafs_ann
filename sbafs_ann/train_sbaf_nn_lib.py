@@ -1,33 +1,28 @@
 import os
 import numpy as np
-from glob import glob
+from sklearn import preprocessing
+
 
 # keras part of tensorflow 2.0
-import numpy as np
 try:
     # keras again imported separately from tensorflow > 2.16
     import keras
     from keras.models import Sequential
-    from keras.layers import Dense, Activation
+    from keras.layers import Dense
     from keras.optimizers import SGD
-    from keras.models import load_model
 except (ModuleNotFoundError, ImportError) as e:
     try:
         # keras part of tensorflow for versions 2.0 to 2.15
         from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Activation
+        from tensorflow.keras.layers import Dense
         from tensorflow.keras.optimizers import SGD
-        from tensorflow.keras.models import load_model
     except (ModuleNotFoundError, ImportError) as e:
         # keras part of tensorflow < 2.0
         import keras
         from keras.models import Sequential
-        from keras.layers.core import Dense, Activation
+        from keras.layers.core import Dense
         from keras.optimizers import SGD
-        from keras.models import load_model
 
-from sklearn.metrics import mean_squared_error
-from sklearn import preprocessing
 
 PERCENTILE = [16, 50, 84]
 N_HIDDEN_LAYER_1 = 10
