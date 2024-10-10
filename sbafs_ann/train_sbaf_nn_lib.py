@@ -56,7 +56,14 @@ def tilted_loss(n_params, quantiles, y_true, y_pred):
     return tf.reduce_mean(v)
 
 
-def apply_network(Xdata, coeff_file, xscale, yscale, xmean, ymean, NUMBER_OF_TRUTHS):
+def apply_network(
+        Xdata,
+        coeff_file,
+        xscale,
+        yscale,
+        xmean,
+        ymean,
+        NUMBER_OF_TRUTHS):
 
     Xtrain_mean = np.asarray([np.loadtxt(xmean)]).astype(np.float32)
     Xtrain_scale = np.asarray([np.loadtxt(xscale)]).astype(np.float32)
@@ -71,8 +78,8 @@ def apply_network(Xdata, coeff_file, xscale, yscale, xmean, ymean, NUMBER_OF_TRU
     model.add(Dense(N_HIDDEN_LAYER_3, activation=ACTIVATION))
     model.add(Dense(NUMBER_OF_TRUTHS * len(PERCENTILE), activation='linear'))
     model.load_weights(filepath=coeff_file)
-    X_in = (Xdata - Xtrain_mean)*Xtrain_scale_inv
-    out = model.predict(X_in[Ok_rows, :], batch_size=int(0.2*Xdata.shape[0]))
+    X_in = (Xdata - Xtrain_mean) * Xtrain_scale_inv
+    out = model.predict(X_in[Ok_rows, :], batch_size=int(0.2 * Xdata.shape[0]))
     out = out.reshape(-1, NUMBER_OF_TRUTHS, len(PERCENTILE))
     out = out * ytrain_scale[:, :, np.newaxis] + ytrain_mean[:, :, np.newaxis]
     out_full = np.nan + \
@@ -81,17 +88,34 @@ def apply_network(Xdata, coeff_file, xscale, yscale, xmean, ymean, NUMBER_OF_TRU
     return out_full
 
 
-def apply_network_nn_name(Xdata, NN_NAME="test", OUTPUT_DIR=".", NUMBER_OF_TRUTHS=5):
+def apply_network_nn_name(
+        Xdata,
+        NN_NAME="test",
+        OUTPUT_DIR=".",
+        NUMBER_OF_TRUTHS=5):
 
     coeff_file = "{:s}/{:s}.keras".format(OUTPUT_DIR, NN_NAME)
     xmean = "{:s}/Xtrain_mean_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
     xscale = "{:s}/Xtrain_scale_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
     ymean = "{:s}/ytrain_mean_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
     yscale = "{:s}/ytrain_scale_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
-    return apply_network(Xdata, coeff_file, xscale, yscale, xmean, ymean, NUMBER_OF_TRUTHS)
+    return apply_network(
+        Xdata,
+        coeff_file,
+        xscale,
+        yscale,
+        xmean,
+        ymean,
+        NUMBER_OF_TRUTHS)
 
 
-def train_network(Xtrain, ytrain, Xvalid, yvalid, OUTPUT_DIR=".", NN_NAME="test"):
+def train_network(
+        Xtrain,
+        ytrain,
+        Xvalid,
+        yvalid,
+        OUTPUT_DIR=".",
+        NN_NAME="test"):
     NUMBER_OF_TRUTHS = ytrain.shape[1]
     # Scale data
     scaler = preprocessing.StandardScaler().fit(Xtrain)
@@ -134,7 +158,7 @@ def train_network(Xtrain, ytrain, Xvalid, yvalid, OUTPUT_DIR=".", NN_NAME="test"
         model.add(Dense(NUMBER_OF_TRUTHS * len(PERCENTILE),
                   kernel_initializer=INIT_DIST, activation='linear'))
     model.compile(loss=lambda y, f: tilted_loss(NUMBER_OF_TRUTHS,
-                                                0.01*np.array(PERCENTILE),
+                                                0.01 * np.array(PERCENTILE),
                                                 # , optimizer='adagrad')
                                                 y, f), optimizer=sgd)
 
@@ -142,11 +166,27 @@ def train_network(Xtrain, ytrain, Xvalid, yvalid, OUTPUT_DIR=".", NN_NAME="test"
     checkpointer = keras.callbacks.EarlyStopping(
         monitor='val_loss', patience=PATIENCE, verbose=1, mode='auto')
     checkpointer2 = keras.callbacks.ModelCheckpoint(
-        filepath=coeff_file, monitor='val_loss', verbose=0, save_best_only=True, mode='min')
+        filepath=coeff_file,
+        monitor='val_loss',
+        verbose=0,
+        save_best_only=True,
+        mode='min')
     # nnet=model.fit(Xtrain, ytrain, batch_size=250, nb_epoch=2650,
-    # validation_datay=(Xvalid, yvalid),callbacks=[checkpointer,checkpointer2],shuffle=True, verbose=2)
-    nnet = model.fit(Xtrain, ytrain, batch_size=250, epochs=2650, validation_data=(
-        Xvalid, yvalid), callbacks=[checkpointer, checkpointer2], shuffle=True, verbose=2)
+    # validation_datay=(Xvalid,
+    # yvalid),callbacks=[checkpointer,checkpointer2],shuffle=True, verbose=2)
+    nnet = model.fit(
+        Xtrain,
+        ytrain,
+        batch_size=250,
+        epochs=2650,
+        validation_data=(
+            Xvalid,
+            yvalid),
+        callbacks=[
+            checkpointer,
+            checkpointer2],
+        shuffle=True,
+        verbose=2)
 
     training_loss = nnet.history['loss']
     validation_loss = nnet.history['val_loss']

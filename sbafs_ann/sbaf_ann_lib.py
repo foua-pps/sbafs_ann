@@ -8,7 +8,7 @@ Copyright (c) 2023 Erik Johansson
 
 @author:     Erik Johansson
 @contact:    <erik.johansson@smhi.se>
- 
+
 '''
 
 import numpy as np
@@ -129,8 +129,10 @@ def getChannel(sati, chn, ang_masked):
 
 
 def getTimePerScanline(ncf):
-    secFromStart = np.linspace(ncf['time_bnds'][:][0][0]*24*3600,
-                               ncf['time_bnds'][:][0][1]*24*3600, num=ncf['lon'].shape[0])
+    secFromStart = np.linspace(
+        ncf['time_bnds'][:][0][0] * 24 * 3600,
+        ncf['time_bnds'][:][0][1] * 24 * 3600,
+        num=ncf['lon'].shape[0])
     epoch = datetime.datetime(1970, 1, 1)
     try:
         start_time_dt = datetime.datetime.strptime(
@@ -293,7 +295,7 @@ def get_data_for_one_case(cfg, n19f, viirsf):
     n19_obj = read_data(n19f, cfg, exclude=["ch_r16"])
     viirs_obj = read_data(viirsf, cfg)
 
-    n19_center_scanline = int(n19_obj.lat.shape[1]/2)
+    n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
     xh = 2
     cutColumns(n19_obj, list(
         range(n19_center_scanline - xh, n19_center_scanline + xh + 1)))
@@ -377,11 +379,13 @@ def get_matchups(cfg, n19_files, npp_files):
 
 
 def get_nn_name_from_cfg(cfg):
-    return 'ch{:d}_SATZ_less_{:d}_SUNZ_{:d}_{:d}_TD_{:d}_min'.format(len(cfg.channel_list),
-                                                                     cfg.accept_satz_max,
-                                                                     cfg.accept_sunz_min,
-                                                                     cfg.accept_sunz_max,
-                                                                     cfg.accept_time_diff)
+    return 'ch{:d}_SATZ_less_{:d}_SUNZ_{:d}_{:d}_TD_{:d}_min'.format(
+        len(
+            cfg.channel_list),
+        cfg.accept_satz_max,
+        cfg.accept_sunz_min,
+        cfg.accept_sunz_max,
+        cfg.accept_time_diff)
 
 
 def train_network_for_files(cfg, n19_files_train, n19_files_valid, npp_files):
@@ -404,7 +408,10 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     n19_obj_all, vgac_obj_all = get_matchups(cfg, n19_files_test, vgac_files)
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     ytest = apply_network_nn_name(
-        Xtest, NN_NAME=nn_name, NUMBER_OF_TRUTHS=ytest.shape[1], OUTPUT_DIR=cfg.nn_dir)
+        Xtest,
+        NN_NAME=nn_name,
+        NUMBER_OF_TRUTHS=ytest.shape[1],
+        OUTPUT_DIR=cfg.nn_dir)
 
     vgac2_obj_all = Lvl1cObj(cfg)
     for ind, channel in enumerate(cfg.channel_list):
@@ -422,8 +429,13 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     # Make same plots:
     title_end = ', SATZ < %d, SUNZ %d - %d, TD = %d min' % (
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
-    fig_end = 'ch{:d}_satz-{:d}_sunz_{:d}-{:d}_td-{:d}min'.format(len(
-        cfg.channel_list), cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
+    fig_end = 'ch{:d}_satz-{:d}_sunz_{:d}-{:d}_td-{:d}min'.format(
+        len(
+            cfg.channel_list),
+        cfg.accept_satz_max,
+        cfg.accept_sunz_min,
+        cfg.accept_sunz_max,
+        cfg.accept_time_diff)
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-VX",
                   vgac_obj_all, n19_obj_all)
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
