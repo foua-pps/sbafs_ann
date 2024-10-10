@@ -3,7 +3,9 @@ import matplotlib
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import copy
+import os
 
+matplotlib.rcParams["font.size"] = 20
 
 def plotScatterHisto(
         x_flat_in,
@@ -22,13 +24,13 @@ def plotScatterHisto(
     x_flat = x_flat_in.copy()[inds]
     y_flat = y_flat_in.copy()[inds]
     print("Number of data points {:d}".format(len(x_flat)))
-    fig = plt.figure()
+    fig = plt.figure(figsize=(20,12))
     fig.suptitle(stitle)
     ax = fig.add_subplot(1, 2, 1)
     # ax.scatter(x_flat, y_flat, marker='.')
 
-    xymax = np.max([np.max(x_flat), np.max(y_flat)])
-    xymin = np.min([np.min(x_flat), np.min(y_flat)])
+    # xymax = np.max([np.max(x_flat), np.max(y_flat)])
+    # xymin = np.min([np.min(x_flat), np.min(y_flat)])
     # binsize = (xymax-xymin)/histd2_bins
     n_edges = histd2_bins
     edgesx = np.linspace(xylim[0], xylim[1], n_edges)
@@ -51,43 +53,47 @@ def plotScatterHisto(
     z = H[xi, yi]
     idx = z.argsort()
     my_cmap = copy.copy(plt.get_cmap("inferno_r", lut=100))
-    cmap_vals = my_cmap(np.arange(100))  # extractvalues as an array
+    cmap_vals = my_cmap(np.arange(100))  # extra ctvalues as an array
     # print cmap_vals[0]
     cmap_vals[0:5] = cmap_vals[5]  # change the first values to less white
     my_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
         "new_inferno_r", cmap_vals)
-    ax.scatter(x_flat[idx], y_flat[idx], c=z[idx],
-               cmap=my_cmap, vmin=1, vmax=1000,
+    b = ax.scatter(x_flat[idx], y_flat[idx], c=z[idx],
+               cmap=my_cmap, vmin=1, vmax=vmax, linewidth=0.5,
                alpha=1.0, marker='.', edgecolors=None, rasterized=True)
-    ax.set_title('Scatter')
+    ax.set_title('Scatter and Density')
     ax.set_ylabel('NOAA 19, max = %d' % int(y_flat.max()))
     ax.set_xlabel('%s, max = %d' % (satn, int(x_flat.max())))
     ax.set_xlim(xylim)
     ax.set_ylim(xylim)
     ax.set_xticks(pt_int)
     ax.set_yticks(pt_int)
-
+    #cax = fig.add_axes([0.80, 0.65, 0.06, 0.22])
+    cbar = fig.colorbar(b)
+        
     xn = np.linspace(xylim[0], xylim[1], 100)
     k1, m1 = np.ma.polyfit(x_flat, y_flat, 1)
     k2a, k2b, m2 = np.ma.polyfit(x_flat, y_flat, 2)
-    p1 = np.ma.polyfit(x_flat, y_flat, 1)
-    p2 = np.ma.polyfit(x_flat, y_flat, 2)
+    # p1 = np.ma.polyfit(x_flat, y_flat, 1)
+    # p2 = np.ma.polyfit(x_flat, y_flat, 2)
     ny_y1 = k1 * xn + m1
     ny_y2 = k2a * np.square(xn) + k2b * xn + m2
-#     p2 = np.poly1d(np.ma.polyfit(x_flat, y_flat, 2))
-#     ny_y2 = p2(xn)
     MSE = np.square(y_flat - x_flat).mean()
     RMSE = np.sqrt(MSE)
-    ax.plot(xn, xn, 'r--', lw=0.5,
+    ax.plot(xn, xn, 'r--', lw=1.0,
             label='y=x RMSE={:3.2f} N={:d}'.format(RMSE, len(x_flat)), )
-    ax.plot(xn, ny_y1, 'g', label='%.4G*x%+.2f' % (k1, m1))
-    ax.plot(xn, ny_y2, 'b', label='%.4G*x²+%.4G*x%+.2f' % (k2a, k2b, m2))
+    if mark_zero:
+        ax.plot(xylim, [0, 0], 'k--', lw=0.5)
+        ax.plot([0, 0], xylim, 'k--', lw=0.5)
+    ax.plot(xn, ny_y1, 'g', label='%.4G*x%+.2f' % (k1, m1), linewidth=1.0)
+    ax.plot(xn, ny_y2, 'b', label='%.4G*x²+%.4G*x%+.2f' % (k2a, k2b, m2), linewidth=1.0)
     rr = np.ma.corrcoef(x_flat, y_flat)
 
     ax.text(1, 0, 'ccof = %.4f' %
             rr[0, 1], horizontalalignment='right', transform=ax.transAxes)
     ax.legend(loc=2, bbox_to_anchor=(0, 1.45))
     ax.set_aspect(1)
+    #plt.colorbar(ax=ax)
 
     ax = fig.add_subplot(1, 2, 2)
     #: Histogram2D can not handle masked arrays
@@ -111,8 +117,8 @@ def plotScatterHisto(
     ax.set_yticklabels(pt_str)
     fig.subplots_adjust(right=0.89)
     pos2 = ax.get_position()
-    cbar_ax = fig.add_axes([0.90, pos2.y0, 0.01, pos2.y1 - pos2.y0])
-    cbar = fig.colorbar(im, cax=cbar_ax)
+    #cbar_ax = fig.add_axes([0.90, pos2.y0, 0.01, pos2.y1 - pos2.y0])
+    fig.colorbar(im)
     fig.savefig(figname + '.png')
     fig.show()
 
@@ -122,7 +128,7 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     r_max_axis = 180
     tb_min_axis = 170
     tb_max_axis = 350
-    vmax = 1600
+    vmax = 100
 
     r_plot_ticks_int = [*range(0, r_max_axis + 1, 30)]
     r_plot_ticks_str = np.asarray(r_plot_ticks_int).astype(str).tolist()
@@ -130,7 +136,7 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     tb_plot_ticks_int = [*range(tb_min_axis, tb_max_axis + 1, 30)]
     tb_plot_ticks_str = np.asarray(tb_plot_ticks_int).astype(str).tolist()
     tb_plot_ticks_loc = []
-    histd2_bins = 100
+    histd2_bins = 400
     for i in range(len(r_plot_ticks_int)):
         #: -1 because we want the in between values
         r_plot_ticks_loc.append(
@@ -199,7 +205,7 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     tb_plot_ticks_int = [*range(tb_min_axis, tb_max_axis + 1, 2)]
     tb_plot_ticks_str = np.asarray(tb_plot_ticks_int).astype(str).tolist()
     tb_plot_ticks_loc = []
-    histd2_bins = 100
+    histd2_bins = 400
 
     for i in range(len(tb_plot_ticks_int)):
         tb_plot_ticks_loc.append(
@@ -231,7 +237,7 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     tb_plot_ticks_int = [*range(tb_min_axis, tb_max_axis + 1, 2)]
     tb_plot_ticks_str = np.asarray(tb_plot_ticks_int).astype(str).tolist()
     tb_plot_ticks_loc = []
-    histd2_bins = 100
+    histd2_bins = 400
 
     for i in range(len(tb_plot_ticks_int)):
         tb_plot_ticks_loc.append(
@@ -263,14 +269,12 @@ def plot_orbit(vgac_obj, n19_obj, figname):
     n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
     myFmt = mdates.DateFormatter('%H:%M')
     fig = plt.figure()
-    fig.suptitle('Noaa 19 = ' + os.path.basename(n19f).split('_')[-2].replace(
-        'Z', '') + '\n' + 'NPP = ' + os.path.basename(viirsf).split('_')[-2])
+    fig.suptitle('Noaa 19 & NPP')
     ax1 = fig.add_subplot(1, 1, 1)
     ax1.plot(vgac_obj.time_dt,
              vgac_obj.lat[:, npp_center_scanline], label='NPP')
     ax1.plot(n19_obj.time_dt,
              n19_obj.lat[:, n19_center_scanline], label='Noaa 19')
-    #             ax1.set_xlim(datetime.datetime())
     ax1.set_title('Org orbit')
     ax1.set_ylabel('Latitude')
     ax1.set_xlabel('Time')
@@ -285,7 +289,7 @@ def plot_latlon(n19_obj, viirs_obj, title_end, figname):
         'Z', '') + '\n' + 'NPP = ' + os.path.basename(viirsf).split('_')[-2])
     ax1 = fig.add_subplot(1, 1, 1)
     if n19_obj.mask is not None:
-        use = n19_obj.mask == False
+        use = ~n19_obj.mask
         ax1.plot(n19_obj.lon[use], n19_obj.lat[use], '.b', alpha=0.1)
         print("Number of data points n19 ll masked {:d}".format(
             len(n19_obj.lon[use])))
@@ -294,7 +298,7 @@ def plot_latlon(n19_obj, viirs_obj, title_end, figname):
         print("Number of data points n19 ll {:d}".format(len(n19_obj.lon)))
     if viirs_obj is not None:
         if viirs_obj.mask is not None:
-            use = viirs_obj.mask == False
+            use = ~viirs_obj.mask
             ax1.plot(viirs_obj.lon[use], viirs_obj.lat[use], '.r', alpha=0.1)
             print("Number of data points ll {:d}".format(
                 len(viirs_obj.lon[use])))
@@ -303,8 +307,6 @@ def plot_latlon(n19_obj, viirs_obj, title_end, figname):
             print("Number of data points ll {:d}".format(len(viirs_obj.lon)))
     ax1.set_xlim([-180, 180])
     ax1.set_ylim([-90, 90])
-
-    # ax.set_ylim(xylim)
     ax1.set_title('Geolocation' + title_end)
     ax1.set_ylabel('Latitude')
     ax1.set_xlabel('Longitude')
