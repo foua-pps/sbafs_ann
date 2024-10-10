@@ -38,9 +38,11 @@ if __name__ == "__main__":
                         required=False, default='.',
                         help="Output directory where to store the train network files")
     options = parser.parse_args()
-    n19_files_train = glob.glob("{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_train))
-    n19_files_valid = glob.glob("{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_valid))                         
-    viirs_files = glob.glob("{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir))
-    train_network_for_files(options, n19_files_train, n19_files_valid, viirs_files)
-
-          
+    n19_files_train = glob.glob(
+        "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_train))
+    n19_files_valid = glob.glob(
+        "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_valid))
+    viirs_files = glob.glob(
+        "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir))
+    train_network_for_files(options, n19_files_train,
+                            n19_files_valid, viirs_files)

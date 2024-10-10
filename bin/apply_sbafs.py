@@ -15,7 +15,7 @@ if __name__ == "__main__":
                         help="Output directory where to store the level1c file")
     parser.add_argument('--nn_dir', type=str, nargs='?',
                         required=False, default='.',
-                        help="NN directory where nn files are stored")   
+                        help="NN directory where nn files are stored")
     parser.add_argument('--n19_test', type=str, nargs='?',
                         required=True, default='.',
                         help="Directory with N19 test files.")
@@ -41,11 +41,10 @@ if __name__ == "__main__":
                         required=False, default=3000,
                         help="Allowd max distance (m)")
     options = parser.parse_args()
-    n19_files = glob.glob("{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_test))
-    viirs_files = glob.glob("{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir))
-    vgac_files =  glob.glob("{:s}/S_NWC_avhrr_vgacsnpp_*T*.nc".format(options.vgac_dir))
+    n19_files = glob.glob(
+        "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_test))
+    viirs_files = glob.glob(
+        "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir))
+    vgac_files = glob.glob(
+        "{:s}/S_NWC_avhrr_vgacsnpp_*T*.nc".format(options.vgac_dir))
     apply_network_and_plot(options, n19_files, viirs_files, vgac_files)
-
-
-
-          
