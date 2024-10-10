@@ -24,9 +24,9 @@ def plotScatterHisto(
     x_flat = x_flat_in.copy()[inds]
     y_flat = y_flat_in.copy()[inds]
     print("Number of data points {:d}".format(len(x_flat)))
-    fig = plt.figure(figsize=(20,12))
+    fig = plt.figure(figsize=(20, 16))
     fig.suptitle(stitle)
-    ax = fig.add_subplot(1, 2, 1)
+    ax = fig.add_subplot(1, 1, 1)
     # ax.scatter(x_flat, y_flat, marker='.')
 
     # xymax = np.max([np.max(x_flat), np.max(y_flat)])
@@ -91,34 +91,8 @@ def plotScatterHisto(
 
     ax.text(1, 0, 'ccof = %.4f' %
             rr[0, 1], horizontalalignment='right', transform=ax.transAxes)
-    ax.legend(loc=2, bbox_to_anchor=(0, 1.45))
+    ax.legend(loc=2)
     ax.set_aspect(1)
-    #plt.colorbar(ax=ax)
-
-    ax = fig.add_subplot(1, 2, 2)
-    #: Histogram2D can not handle masked arrays
-    # inds = np.where(~(x_flat.mask | y_flat.mask))
-    H, xedges, yedges = np.histogram2d(
-        x_flat, y_flat, bins=histd2_bins, range=[
-            xylim, xylim])  # @UnusedVariable
-    cmap = 'plasma'
-    im = ax.imshow(H.T, origin='lower', cmap=cmap, vmin=0, vmax=vmax)
-    xnH = np.linspace(0, histd2_bins - 1, 100)
-    ax.plot(xnH, xnH, 'r--', lw=0.5)
-    if mark_zero:
-
-        zeroi = np.searchsorted(xedges, 0)
-        ax.plot(xnH, 0 * xnH + zeroi, 'w--', lw=0.5)
-        ax.plot(0 * xnH + zeroi, xnH, 'w--', lw=0.5)
-    ax.set_title('2D Histogram')
-    ax.set_xticks(pt_loc)
-    ax.set_xticklabels(pt_str)
-    ax.set_yticks(pt_loc)
-    ax.set_yticklabels(pt_str)
-    fig.subplots_adjust(right=0.89)
-    pos2 = ax.get_position()
-    #cbar_ax = fig.add_axes([0.90, pos2.y0, 0.01, pos2.y1 - pos2.y0])
-    fig.colorbar(im)
     fig.savefig(figname + '.png')
     fig.show()
 
