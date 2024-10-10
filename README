@@ -1,0 +1,27 @@
+This module contain scripts for plotting and applying sbafs.
+
+To use from level1c4pps:
+----------------------------------
+
+from sbafs_ann.convert_vgac import convert_to_vgac_with_nn
+scene = convert_to_vgac_with_nn(scene, SBAF_NN_DIR=sbaf_nn_dir)
+
+The convert_vgac module is a bit hardcoded at the moment. There is room for improvment!
+
+
+There is now two networks trained:
+----------------------------------
+
+train_sbafs.py --accept_sunz_min 90 --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_train ~/SBAF_NN/DATA/TEST/ --n19_valid ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_tb11 ch_tb12 ch_tb37 ch_tb85
+
+train_sbafs.py --accept_sunz_max 89 --accept_time_diff 1 --accept_satz_max 15 --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_train ~/SBAF_NN/DATA/TRAIN/ --n19_valid ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_r06 ch_r09 ch_tb11 ch_tb12 ch_tb37 ch_r16 ch_tb85
+
+
+To make images for these:
+-------------------------
+apply_sbafs.py --nn_dir ~/SBAF_NN// --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_test ~/SBAF_NN/DATA/TEST/ --vgac_dir ~/VGAC_dir/ --accept_sunz_max 89 --accept_time_diff 1 --accept_satz_max 15  --plot_dir ~/temp/ ch_r06 ch_r09 ch_tb11 ch_tb12 ch_tb37 ch_r16 ch_tb85
+ apply_sbafs.py --nn_dir ~/SBAF_NN/ --accept_sunz_min 90 --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_test ~/SBAF_NN/DATA/TEST/ --vgac_dir ~/VGAC_dir/ --plot_dir ~/temp/ ch_tb11 ch_tb12 ch_tb37 ch_tb85
+
+Important stuff:
+-------------------------
+Note for 3.7 VIIRS data is used when there is nodata in AHVRR.
