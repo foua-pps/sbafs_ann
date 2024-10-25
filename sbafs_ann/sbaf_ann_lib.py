@@ -29,6 +29,24 @@ def get_cold_37_from_viirs(viirs, n19):
     n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update]
     n19.channels["ch_tb37"].mask[update] = False
 
+def warn_get_data_to_use_cfg(cfg, viirs, n19):
+
+    for val, var  in zip([cfg.accept_time_diff, cfg.max_distance_between_pixels_m],
+                         ["abs_time_diff_s", "distance_between_pixels_m"]):
+        if val > np.max(viirs.data[var]):
+            print("No data filterd out due to {:s}, max diff {:3.1f}.".format(var, np.max(viirs.data[var])))
+    for val, var  in zip([cfg.accept_sunz_max, cfg.accept_satz_max],
+                         ["sunzenith", "satzenith"]):
+        #if val > np.max(viirs.channels[var]) and val > np.max(n19.channels[var]):
+        print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
+            var, np.max(viirs.channels[var]), np.max(n19.channels[var])))
+    for val, var  in zip([cfg.accept_sunz_min],
+                         ["sunzenith"]):
+        #if val < np.min(viirs.channels[var]) and val < np.min(n19.channels[var]):
+        print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
+            var, np.max(viirs.channels[var]), np.max(n19.channels[var])))            
+
+
 def get_data_to_use(cfg, viirs, n19):
 
     mask = np.logical_or(
@@ -38,7 +56,7 @@ def get_data_to_use(cfg, viirs, n19):
             mask = np.logical_or(mask, n19.channels[channel].mask)
         mask = np.logical_or(mask, viirs.channels[channel].mask)
     use = ~mask
-    use[viirs.data["abs_time_diff_s"] > cfg.accept_time_diff * 60] = False
+    use[viirs.data["abs_time_diff_s"] > cfg.accept_time_diff] = False
     use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
     use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
     use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
@@ -51,6 +69,7 @@ def get_data_to_use(cfg, viirs, n19):
 
 def create_training_data(cfg, viirs, n19):
     get_cold_37_from_viirs(viirs, n19)
+    warn_get_data_to_use_cfg(cfg, viirs, n19)
     use = get_data_to_use(cfg, viirs, n19)
     Xdata = np.empty((sum(use), len(cfg.channel_list)))
     n19_channels = [ch for ch in n19.channels if ch in cfg.channel_list]
@@ -69,7 +88,7 @@ def create_training_data(cfg, viirs, n19):
 
 
 def get_nn_name_from_cfg(cfg):
-    return 'ch{:d}_SATZ_less_{:d}_SUNZ_{:d}_{:d}_TD_{:d}_min'.format(
+    return 'ch{:d}_SATZ_less_{:d}_SUNZ_{:d}_{:d}_TD_{:d}_sec'.format(
         len(cfg.channel_list),
         cfg.accept_satz_max,
         cfg.accept_sunz_min,
