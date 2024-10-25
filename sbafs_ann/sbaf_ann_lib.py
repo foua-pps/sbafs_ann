@@ -23,14 +23,14 @@ import os
 
 
 def get_cold_37_from_viirs(viirs, n19):
+
     update = np.logical_and(
         n19.channels["ch_tb37"].mask, ~viirs.channels["ch_tb37"].mask)
     n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update]
     n19.channels["ch_tb37"].mask[update] = False
 
+def get_data_to_use(cfg, viirs, n19):
 
-def create_training_data(cfg, viirs, n19):
-    get_cold_37_from_viirs(viirs, n19)
     mask = np.logical_or(
         n19.channels["ch_tb11"].mask, viirs.channels["ch_tb11"].mask)
     for channel in cfg.channel_list:
@@ -38,8 +38,22 @@ def create_training_data(cfg, viirs, n19):
             mask = np.logical_or(mask, n19.channels[channel].mask)
         mask = np.logical_or(mask, viirs.channels[channel].mask)
     use = ~mask
+    use[viirs.data["abs_time_diff_s"] > cfg.accept_time_diff * 60] = False
+    use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
+    use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
+    use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
+    use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
+    use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
+    use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
+    use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
+    return use
+
+
+def create_training_data(cfg, viirs, n19):
+    get_cold_37_from_viirs(viirs, n19)
+    use = get_data_to_use(cfg, viirs, n19)
     Xdata = np.empty((sum(use), len(cfg.channel_list)))
-    n19_channels = [ch for ch in n19.channels if n19.channels[ch] is not None]
+    n19_channels = [ch for ch in n19.channels if ch in cfg.channel_list]
     Ydata = np.empty((sum(use), len(n19_channels)))
     for ind, channel in enumerate(cfg.channel_list):
         Xdata[:, ind] = np.copy(viirs.channels[channel][use])
@@ -50,36 +64,31 @@ def create_training_data(cfg, viirs, n19):
             if channel in n19.channels:
                 Ydata[:, ind] -= n19.channels["ch_tb11"][use]
                 
-    n19.mask = mask
-
-    if np.isnan(Ydata).any():
-        import pdb
-        pdb.set_trace()
     return (Xdata, Ydata)
 
 
 
 def get_nn_name_from_cfg(cfg):
     return 'ch{:d}_SATZ_less_{:d}_SUNZ_{:d}_{:d}_TD_{:d}_min'.format(
-        len(
-            cfg.channel_list),
+        len(cfg.channel_list),
         cfg.accept_satz_max,
         cfg.accept_sunz_min,
         cfg.accept_sunz_max,
         cfg.accept_time_diff)
 
 
-def train_network_for_files(cfg, n19_files_train, n19_files_valid, npp_files):
+def train_network_for_files(cfg, files_train, files_valid):
     from sbafs_ann.train_sbaf_nn_lib import train_network
+    from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
     nn_name = get_nn_name_from_cfg(cfg)
-    n19_obj_all, viirs_obj_all = get_matchups(cfg, n19_files_train, npp_files)
+    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
     Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all)
-    n19_obj_all, viirs_obj_all = get_matchups(cfg, n19_files_valid, npp_files)
+    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_valid)
     Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     train_network(Xtrain, ytrain, Xvalid, yvalid,
                   NN_NAME=nn_name, OUTPUT_DIR=cfg.output_dir)
 
-
+           
 def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
     from sbafs_ann.plots_lib import do_sbaf_plots

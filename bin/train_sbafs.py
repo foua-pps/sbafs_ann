@@ -10,15 +10,12 @@ if __name__ == "__main__":
         description=('Script to train ANN SBAFs'))
     parser.add_argument('channel_list', metavar='channel_listN', type=str, nargs='+',
                         help='List of channels to train with')
-    parser.add_argument('--n19_train', type=str, nargs='?',
+    parser.add_argument('--train_dir', type=str, nargs='?',
                         required=True, default='.',
                         help="Directory with NOAA-19 training files.")
-    parser.add_argument('--n19_valid', type=str, nargs='?',
+    parser.add_argument('--valid_dir', type=str, nargs='?',
                         required=True, default='.',
                         help="Directory with NOAA-19 during training validation files.")
-    parser.add_argument('--viirs_dir', type=str, nargs='?',
-                        required=True, default='.',
-                        help="Directory with all VIIRS files.")
     parser.add_argument('--accept_satz_max', type=int, nargs='?',
                         required=False, default=25,
                         help="Max satz angle")
@@ -38,11 +35,9 @@ if __name__ == "__main__":
                         required=False, default='.',
                         help="Output directory where to store the train network files")
     options = parser.parse_args()
-    n19_files_train = glob.glob(
-        "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_train))
-    n19_files_valid = glob.glob(
-        "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_valid))
-    viirs_files = glob.glob(
-        "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir))
-    train_network_for_files(options, n19_files_train,
-                            n19_files_valid, viirs_files)
+    files_train = glob.glob(
+        "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.train_dir))
+    print(files_train)
+    files_valid = glob.glob(
+        "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.valid_dir))
+    train_network_for_files(options, files_train, files_valid)
