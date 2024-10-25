@@ -340,9 +340,9 @@ def get_data_for_one_case(cfg, n19f, viirsf):
     n19_obj = read_data(n19f, cfg, exclude=["ch_r16"])
     viirs_obj = read_data(viirsf, cfg)
     n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
-    xh = 2
-    cutColumns(n19_obj, list(
-        range(n19_center_scanline - xh, n19_center_scanline + xh + 1)))
+    #xh = 2
+    #cutColumns(n19_obj, list(
+    #    range(n19_center_scanline - xh, n19_center_scanline + xh + 1)))
     n19_use, npp_use = findEdges(n19_obj, viirs_obj, cfg.accept_time_diff)
     cutEdges(n19_obj, n19_use)
     cutEdges(viirs_obj, npp_use)
