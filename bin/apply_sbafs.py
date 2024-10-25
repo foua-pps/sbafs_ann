@@ -35,8 +35,8 @@ if __name__ == "__main__":
                         required=False, default=0,
                         help="Min sunz angle")
     parser.add_argument('--accept_time_diff', type=int, nargs='?',
-                        required=False, default=5,
-                        help="Allowd time difference in minutes")
+                        required=False, default=5*60,
+                        help="Allowd time difference in seconds")
     parser.add_argument('--max_distance_between_pixels_m', type=int, nargs='?',
                         required=False, default=3000,
                         help="Allowd max distance (m)")

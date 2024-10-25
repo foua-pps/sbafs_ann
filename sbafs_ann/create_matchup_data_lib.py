@@ -30,7 +30,7 @@ class ConfigObj(object):
         self.accept_satz_max = 25
         self.accept_sunz_max = 180
         self.accept_sunz_min = 0
-        self.accept_time_diff = 5
+        self.accept_time_diff = 300
         self.max_distance_between_pixels_m = 3000
         self.channel_list = ["ch_r06",
                              "ch_r09",
@@ -153,7 +153,7 @@ def getTimePerScanline(ncf):
 def findEdges(n19_obj, npp_obj, timeDiffMin):
     n19_time = n19_obj.time[:, 0]
     npp_time = npp_obj.time[:, 0]
-    maxDiff = timeDiffMin * 60
+    maxDiff = timeDiffMin 
     minTime = np.max([n19_time[0], npp_time[0]]) - maxDiff
     maxTime = np.min([n19_time[-1], npp_time[-1]]) + maxDiff
 
@@ -251,7 +251,7 @@ def mask_time_pixels(rm_obj, sat_obj, cfg):
     time_diff = rm_obj.data["abs_time_diff_s"][maybe_ok]
 
     ok_time = np.array(
-        [time_diff[ind] < cfg.accept_time_diff * 60 for ind in range(len(time_diff))])
+        [time_diff[ind] < cfg.accept_time_diff for ind in range(len(time_diff))])
     if not ok_time.all():
         print("Warning some timedelta are larger than accept_time_diff, updating the mask")
         for channel in rm_obj.channels:
