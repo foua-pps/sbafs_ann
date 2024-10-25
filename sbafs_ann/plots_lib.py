@@ -104,7 +104,7 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     r_max_axis = 180
     tb_min_axis = 170
     tb_max_axis = 350
-    vmax = 100
+    vmax = 1000
 
     r_plot_ticks_int = [*range(0, r_max_axis + 1, 30)]
     r_plot_ticks_str = np.asarray(r_plot_ticks_int).astype(str).tolist()

@@ -60,14 +60,14 @@ class Lvl1cObj(object):
 
     def __add__(self, other):
         """Adding two objects together"""
-        if self.lat is None:
+        if self.channels["ch_tb11"] is None:
             # print("Self is None")
             return other
-        if other.lat is None:
+        if other.channels["ch_tb11"] is None:
             print("other is None")
             return self
-        for channel in self.channel_list:
-            if channel not in self.channels:
+        for channel in self.channels:
+            if self.channels[channel] is None:
                 continue
             self.channels[channel] = np.ma.concatenate(
                 [self.channels[channel], other.channels[channel]])
@@ -76,11 +76,15 @@ class Lvl1cObj(object):
             except IndexError:
                 self.channels[channel].mask = np.zeros(
                     self.channels[channel].shape).astype(bool)
-        for dataset in data:        
-            self.data[dataset] = np.concatenate([self.data[dataset], other.data[datasetlat]])
+        for dataset in self.data:        
+            self.data[dataset] = np.concatenate([self.data[dataset], other.data[dataset]])
 
-        self.lat = np.concatenate([self.lat, other.lat])
-        self.lon = np.concatenate([self.lon, other.lon])
+        try:    
+            self.lat = np.concatenate([self.lat, other.lat])
+            self.lon = np.concatenate([self.lon, other.lon])
+        except:
+            self.lat=None
+            self.lon=None
         if self.mask is not None:
             self.mask = np.concatenate([self.mask, other.mask])
         return self
@@ -262,9 +266,12 @@ def mask_time_pixels(rm_obj, sat_obj, cfg):
 def crop_nonvalid_data(n19_obj, viirs_obj):
     ok_data = viirs_obj.data["ok_data"]
     for channel in viirs_obj.channels:
-        print(channel)
+        if viirs_obj.channels[channel] is None:
+            continue
         viirs_obj.channels[channel] = viirs_obj.channels[channel][ok_data]
     for channel in n19_obj.channels:
+        if  n19_obj.channels[channel] is None:
+            continue
         n19_obj.channels[channel] = n19_obj.channels[channel][ok_data]
     for varname in viirs_obj.data:
         viirs_obj.data[varname] = viirs_obj.data[varname][ok_data]
@@ -292,8 +299,8 @@ def do_matching(cfg, n19_obj, viirs_obj):
     rm_viirs_obj.data["distance_between_pixels_m"] = distance_between_pixels_m
     rm_viirs_obj.data["ok_data"] = ok_data
     
-    for channel in cfg.channel_list:
-        if channel in viirs_obj.channels:
+    for channel in viirs_obj.channels:
+        if viirs_obj.channels[channel] is not None:
             rm_viirs_obj.channels[channel] = get_sample_from_neighbour_info(
                 'nn', target_def.shape,
                 viirs_obj.channels[channel],
@@ -340,7 +347,7 @@ def get_data_for_one_case(cfg, n19f, viirsf):
     n19_obj = read_data(n19f, cfg, exclude=["ch_r16"])
     viirs_obj = read_data(viirsf, cfg)
     n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
-    #xh = 2
+    #xh = 15
     #cutColumns(n19_obj, list(
     #    range(n19_center_scanline - xh, n19_center_scanline + xh + 1)))
     n19_use, npp_use = findEdges(n19_obj, viirs_obj, cfg.accept_time_diff)
@@ -404,6 +411,20 @@ def create_matchup_data_for_files(cfg, n19_files, npp_files):
                         npp_start_time_s),
                     n19_obj, viirs_obj)
 
+def merge_matchup_data_for_files(cfg, n19_files, npp_files):
+    n19_obj_all = Lvl1cObj(cfg)
+    viirs_obj_all = Lvl1cObj(cfg)
+    counter = 0
+    for n19f in n19_files:
+        for viirsf in npp_files:
+            n19_obj, viirs_obj = get_matchups(cfg, n19f, viirsf)
+            if n19_obj is not None:
+                counter += 1
+                print(counter, os.path.basename(n19f), os.path.basename(viirsf))
+                viirs_obj_all += viirs_obj
+                n19_obj_all += n19_obj
+    return n19_obj_all, viirs_obj_all    
+                
 
 def write_matchupdata(filename, n19_obj, viirs_obj):
 

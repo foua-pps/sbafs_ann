@@ -37,14 +37,14 @@ def warn_get_data_to_use_cfg(cfg, viirs, n19):
             print("No data filterd out due to {:s}, max diff {:3.1f}.".format(var, np.max(viirs.data[var])))
     for val, var  in zip([cfg.accept_sunz_max, cfg.accept_satz_max],
                          ["sunzenith", "satzenith"]):
-        #if val > np.max(viirs.channels[var]) and val > np.max(n19.channels[var]):
-        print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
+        if val > np.max(viirs.channels[var]) and val > np.max(n19.channels[var]):
+            print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
             var, np.max(viirs.channels[var]), np.max(n19.channels[var])))
     for val, var  in zip([cfg.accept_sunz_min],
                          ["sunzenith"]):
         #if val < np.min(viirs.channels[var]) and val < np.min(n19.channels[var]):
-        print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
-            var, np.max(viirs.channels[var]), np.max(n19.channels[var])))            
+        print("No data filterd out due to {:s}, min viirs {:3.1f} avhrr {:3.1f}.".format(
+            var, np.min(viirs.channels[var]), np.min(n19.channels[var])))            
 
 
 def get_data_to_use(cfg, viirs, n19):
@@ -82,7 +82,8 @@ def create_training_data(cfg, viirs, n19):
             Xdata[:, ind] -= viirs.channels["ch_tb11"][use]
             if channel in n19.channels:
                 Ydata[:, ind] -= n19.channels["ch_tb11"][use]
-                
+    n19.mask = ~use
+    print(Xdata.shape)
     return (Xdata, Ydata)
 
 
@@ -112,9 +113,10 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
     from sbafs_ann.plots_lib import do_sbaf_plots
     from sbafs_ann.train_sbaf_nn_lib import apply_network_nn_name
+    from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
     nn_name = get_nn_name_from_cfg(cfg)
-    n19_obj_all, viirs_obj_all = get_matchups(cfg, n19_files_test, npp_files)
-    n19_obj_all, vgac_obj_all = get_matchups(cfg, n19_files_test, vgac_files)
+    n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
+    #n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     ytest = apply_network_nn_name(
         Xtest,
@@ -125,10 +127,11 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     vgac2_obj_all = Lvl1cObj(cfg)
     for ind, channel in enumerate(cfg.channel_list):
         if channel in n19_obj_all.channels and n19_obj_all.channels[channel] is not None:
-            vgac2_obj_all.channels[channel] = 0 * \
-                viirs_obj_all.channels[channel]
-            vgac2_obj_all.channels[channel][~n19_obj_all.mask] = ytest[:, ind, 1].copy(
-            )
+            vgac2_obj_all.channels[channel] = 0 * viirs_obj_all.channels[channel]
+            try:
+                vgac2_obj_all.channels[channel][~n19_obj_all.mask] = ytest[:, ind, 1].copy()
+            except:
+                import pdb;pdb.set_trace()
             vgac2_obj_all.channels[channel].mask = n19_obj_all.mask
             if channel in ["ch_tb12", "ch_tb37"]:
                 vgac2_obj_all.channels[channel][~n19_obj_all.mask] += ytest[:, cfg.channel_list.index("ch_tb11"), 1]
