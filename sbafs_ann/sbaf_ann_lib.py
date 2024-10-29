@@ -138,9 +138,9 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
         vgac2_obj_all.mask = n19_obj_all.mask
 
     # Make same plots:
-    title_end = ', SATZ < %d, SUNZ %d - %d, TD = %d min' % (
+    title_end = ', SATZ < %d, SUNZ %d - %d, TD = %d sec' % (
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
-    fig_end = 'ch{:d}_satz-{:d}_sunz_{:d}-{:d}_td-{:d}min'.format(
+    fig_end = 'ch{:d}_satz-{:d}_sunz_{:d}-{:d}_td-{:d}sec'.format(
         len(
             cfg.channel_list),
         cfg.accept_satz_max,
