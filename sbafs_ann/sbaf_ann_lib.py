@@ -39,22 +39,23 @@ def get_cold_37_from_viirs(viirs, n19):
     n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update]
     n19.channels["ch_tb37"].mask[update] = False
 
+
 def warn_get_data_to_use_cfg(cfg, viirs, n19):
 
-    for val, var  in zip([cfg.accept_time_diff, cfg.max_distance_between_pixels_m],
-                         ["abs_time_diff_s", "distance_between_pixels_m"]):
+    for val, var in zip([cfg.accept_time_diff, cfg.max_distance_between_pixels_m],
+                        ["abs_time_diff_s", "distance_between_pixels_m"]):
         if val > np.max(viirs.data[var]):
             print("No data filterd out due to {:s}, max diff {:3.1f}.".format(var, np.max(viirs.data[var])))
-    for val, var  in zip([cfg.accept_sunz_max, cfg.accept_satz_max],
-                         ["sunzenith", "satzenith"]):
+    for val, var in zip([cfg.accept_sunz_max, cfg.accept_satz_max],
+                        ["sunzenith", "satzenith"]):
         if val > np.max(viirs.channels[var]) and val > np.max(n19.channels[var]):
             print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
-            var, np.max(viirs.channels[var]), np.max(n19.channels[var])))
-    for val, var  in zip([cfg.accept_sunz_min],
-                         ["sunzenith"]):
+                var, np.max(viirs.channels[var]), np.max(n19.channels[var])))
+    for val, var in zip([cfg.accept_sunz_min],
+                        ["sunzenith"]):
         if val < np.min(viirs.channels[var]) and val < np.min(n19.channels[var]):
             print("No data filterd out due to {:s}, min viirs {:3.1f} avhrr {:3.1f}.".format(
-                var, np.min(viirs.channels[var]), np.min(n19.channels[var])))            
+                var, np.min(viirs.channels[var]), np.min(n19.channels[var])))
 
 
 def get_data_to_use(cfg, viirs, n19):
@@ -97,7 +98,6 @@ def create_training_data(cfg, viirs, n19):
     return (Xdata, Ydata)
 
 
-
 def get_nn_name_from_cfg(cfg):
     now = datetime.datetime.utcnow().strftime("%Y%m%d")
     return 'ch{:d}_satz_max_{:d}_SUNZ_{:d}_{:d}_tdiff_{:d}_sec_{:s}'.format(
@@ -108,11 +108,12 @@ def get_nn_name_from_cfg(cfg):
         cfg.accept_time_diff,
         now)
 
+
 def set_up_nn_file_names(cfg, nn_dir):
     nn_pattern = get_nn_name_from_cfg(cfg)
     mband_list = [PPS_MBAND[channel] for channel in cfg.channel_list]
     mband_list_out = [PPS_MBAND[channel] for channel in cfg.channel_list if channel in NOAA19_CHANNELS]
-    nn_cfg = { 
+    nn_cfg = {
         "coeff_file": "{:s}/{:s}.keras".format(nn_dir, nn_pattern),
         "xmean": "{:s}/Xtrain_mean_{:s}.txt".format(nn_dir, nn_pattern),
         "xscale": "{:s}/Xtrain_scale_{:s}.txt".format(nn_dir, nn_pattern),
@@ -125,7 +126,7 @@ def set_up_nn_file_names(cfg, nn_dir):
         "channel_list_mband":  mband_list,
         "channel_list_mband_out": mband_list_out,
         "n_truths": len(mband_list_out)
-        }
+    }
     for cfg_name in ["accept_satz_max",
                      "accept_sunz_max",
                      "accept_sunz_min",
@@ -152,7 +153,7 @@ def read_nn_config(nn_cfg_file):
         nn_cfg[key] = os.path.join(nn_dir, nn_cfg[key])
     return nn_cfg
 
-       
+
 def train_network_for_files(cfg, files_train, files_valid):
     from sbafs_ann.train_sbaf_nn_lib import train_network
     from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
@@ -163,6 +164,7 @@ def train_network_for_files(cfg, files_train, files_valid):
     Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
+
 def update_cfg_with_nn_cfg(cfg, nn_cfg):
     cfg.channel_list = nn_cfg["channel_list"]
     for cfg_name in ["accept_satz_max",
@@ -171,20 +173,20 @@ def update_cfg_with_nn_cfg(cfg, nn_cfg):
                      "accept_time_diff",
                      "max_distance_between_pixels_m"]:
         if getattr(cfg, cfg_name) is None:
-           setattr(cfg, cfg_name, nn_cfg[cfg_name])
-            
-           
+            setattr(cfg, cfg_name, nn_cfg[cfg_name])
+
+
 def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
     from sbafs_ann.plots_lib import do_sbaf_plots
     from sbafs_ann.train_sbaf_nn_lib import apply_network
     from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
-    
+
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
-    
+
     n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
-    #n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
+    # n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     ytest = apply_network(
         nn_cfg,
@@ -197,7 +199,8 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
             try:
                 vgac2_obj_all.channels[channel][~n19_obj_all.mask] = ytest[:, ind, 1].copy()
             except:
-                import pdb;pdb.set_trace()
+                import pdb
+                pdb.set_trace()
             vgac2_obj_all.channels[channel].mask = n19_obj_all.mask
             if channel in ["ch_tb12", "ch_tb37"]:
                 vgac2_obj_all.channels[channel][~n19_obj_all.mask] += ytest[:, cfg.channel_list.index("ch_tb11"), 1]

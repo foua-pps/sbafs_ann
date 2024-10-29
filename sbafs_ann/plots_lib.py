@@ -7,6 +7,7 @@ import os
 
 matplotlib.rcParams["font.size"] = 20
 
+
 def plotScatterHisto(
         x_flat_in,
         y_flat_in,
@@ -59,8 +60,8 @@ def plotScatterHisto(
     my_cmap = matplotlib.colors.LinearSegmentedColormap.from_list(
         "new_inferno_r", cmap_vals)
     b = ax.scatter(x_flat[idx], y_flat[idx], c=z[idx],
-               cmap=my_cmap, vmin=1, vmax=vmax, linewidth=0.5,
-               alpha=1.0, marker='.', edgecolors=None, rasterized=True)
+                   cmap=my_cmap, vmin=1, vmax=vmax, linewidth=0.5,
+                   alpha=1.0, marker='.', edgecolors=None, rasterized=True)
     ax.set_title('Scatter and Density')
     ax.set_ylabel('NOAA 19, max = %d' % int(y_flat.max()))
     ax.set_xlabel('%s, max = %d' % (satn, int(x_flat.max())))
@@ -68,9 +69,9 @@ def plotScatterHisto(
     ax.set_ylim(xylim)
     ax.set_xticks(pt_int)
     ax.set_yticks(pt_int)
-    #cax = fig.add_axes([0.80, 0.65, 0.06, 0.22])
+    # cax = fig.add_axes([0.80, 0.65, 0.06, 0.22])
     cbar = fig.colorbar(b)
-        
+
     xn = np.linspace(xylim[0], xylim[1], 100)
     k1, m1 = np.ma.polyfit(x_flat, y_flat, 1)
     k2a, k2b, m2 = np.ma.polyfit(x_flat, y_flat, 2)
@@ -80,7 +81,7 @@ def plotScatterHisto(
     ny_y2 = k2a * np.square(xn) + k2b * xn + m2
     MSE = np.square(y_flat - x_flat).mean()
     MAE = np.abs(y_flat - x_flat).mean()
-    PE1 = 100*np.sum(np.abs(y_flat - x_flat)>1)/len(y_flat)
+    PE1 = 100*np.sum(np.abs(y_flat - x_flat) > 1)/len(y_flat)
     RMSE = np.sqrt(MSE)
     ax.plot(xn, xn, 'r--', lw=1.0,
             label='y=x RMSE={:3.3f} MAE = {:3.3f} PE1= {:3.1f} N={:d}'.format(RMSE, MAE, PE1, len(x_flat)), )

@@ -65,7 +65,7 @@ def apply_network(nn_cfg, Xdata):
     model.add(Dense(N_HIDDEN_LAYER_1, activation=ACTIVATION))
     model.add(Dense(N_HIDDEN_LAYER_2, activation=ACTIVATION))
     model.add(Dense(N_HIDDEN_LAYER_3, activation=ACTIVATION))
-    model.add(Dense(n_truths  * len(PERCENTILE), activation='linear'))
+    model.add(Dense(n_truths * len(PERCENTILE), activation='linear'))
     model.load_weights(filepath=nn_cfg["coeff_file"])
     X_in = (Xdata - Xtrain_mean) * Xtrain_scale_inv
     out = model.predict(X_in[Ok_rows, :], batch_size=int(0.2 * Xdata.shape[0]))

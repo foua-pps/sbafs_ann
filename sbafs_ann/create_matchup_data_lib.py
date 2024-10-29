@@ -53,7 +53,7 @@ class Lvl1cObj(object):
                          "ch_tb11": None,
                          "ch_tb12": None,
                          "ch_tb37": None}
-        self.data={}
+        self.data = {}
         self.mask = None
         self.lat = None
         self.lon = None
@@ -76,15 +76,15 @@ class Lvl1cObj(object):
             except IndexError:
                 self.channels[channel].mask = np.zeros(
                     self.channels[channel].shape).astype(bool)
-        for dataset in self.data:        
+        for dataset in self.data:
             self.data[dataset] = np.concatenate([self.data[dataset], other.data[dataset]])
 
-        try:    
+        try:
             self.lat = np.concatenate([self.lat, other.lat])
             self.lon = np.concatenate([self.lon, other.lon])
         except:
-            self.lat=None
-            self.lon=None
+            self.lat = None
+            self.lon = None
         if self.mask is not None:
             self.mask = np.concatenate([self.mask, other.mask])
         return self
@@ -158,7 +158,7 @@ def getTimePerScanline(ncf):
 def findEdges(n19_obj, npp_obj, timeDiffMin):
     n19_time = n19_obj.time[:, 0]
     npp_time = npp_obj.time[:, 0]
-    maxDiff = timeDiffMin 
+    maxDiff = timeDiffMin
     minTime = np.max([n19_time[0], npp_time[0]]) - maxDiff
     maxTime = np.min([n19_time[-1], npp_time[-1]]) + maxDiff
 
@@ -205,7 +205,7 @@ def cutMasked(obj):
     obj.time = obj.time[use]
     obj.mask = None
 
-    
+
 def read_data(fname, cfg, exclude=[]):
     print("Reading {:s}".format(fname))
     my_obj = Lvl1cObj(cfg)
@@ -236,7 +236,7 @@ def read_data(fname, cfg, exclude=[]):
             my_obj.channels[channel] = val
     my_obj.channels["satzenith"] = my_sat['satzenith'][0, :, :].data
     my_obj.channels["sunzenith"] = my_sat['sunzenith'][0, :, :].data
-    
+
     scanLineTime, scanLineTime_dt = getTimePerScanline(my_sat)
     my_obj.time = np.tile(scanLineTime[:, np.newaxis], [
                           1, my_obj.lat.shape[1]])
@@ -244,16 +244,16 @@ def read_data(fname, cfg, exclude=[]):
     my_sat.close()
     return my_obj
 
+
 def calc_time_diff(rm_obj, sat_obj):
     rm_obj.data["abs_time_diff_s"] = np.where(rm_obj.time > sat_obj.time,
                                               rm_obj.time - sat_obj.time,
                                               sat_obj.time - rm_obj.time)
-    
 
 
 def mask_time_pixels(rm_obj, sat_obj, cfg):
 
-    maybe_ok = rm_obj.time != 0    
+    maybe_ok = rm_obj.time != 0
     time_diff = rm_obj.data["abs_time_diff_s"][maybe_ok]
 
     ok_time = np.array(
@@ -265,6 +265,7 @@ def mask_time_pixels(rm_obj, sat_obj, cfg):
                 rm_obj.channels[channel].mask[maybe_ok][~ok_time] = True
         rm_obj.mask[maybe_ok][~ok_time] = True
 
+
 def crop_nonvalid_data(n19_obj, viirs_obj):
     ok_data = viirs_obj.data["ok_data"]
     for channel in viirs_obj.channels:
@@ -272,7 +273,7 @@ def crop_nonvalid_data(n19_obj, viirs_obj):
             continue
         viirs_obj.channels[channel] = viirs_obj.channels[channel][ok_data]
     for channel in n19_obj.channels:
-        if  n19_obj.channels[channel] is None:
+        if n19_obj.channels[channel] is None:
             continue
         n19_obj.channels[channel] = n19_obj.channels[channel][ok_data]
     for varname in viirs_obj.data:
@@ -283,7 +284,8 @@ def crop_nonvalid_data(n19_obj, viirs_obj):
     n19_obj.lon = n19_obj.lon[ok_data]
     viirs_obj.lat = viirs_obj.lat[ok_data]
     viirs_obj.lon = viirs_obj.lon[ok_data]
-        
+
+
 def do_matching(cfg, n19_obj, viirs_obj):
     rm_viirs_obj = Lvl1cObj(cfg)
     source_def = SwathDefinition(viirs_obj.lon, viirs_obj.lat)
@@ -292,15 +294,14 @@ def do_matching(cfg, n19_obj, viirs_obj):
     valid_in, valid_out, indices, distances = get_neighbour_info(
         source_def, target_def, radius_of_influence=cfg.max_distance_between_pixels_m, neighbours=1)
 
-
     distance_between_pixels_m = np.zeros(n19_obj.lat.shape) - 9
     distance_between_pixels_m[valid_out] = distances
     ok_data = np.logical_and(
         distance_between_pixels_m <= cfg.max_distance_between_pixels_m,
-        distance_between_pixels_m >0 )
+        distance_between_pixels_m > 0)
     rm_viirs_obj.data["distance_between_pixels_m"] = distance_between_pixels_m
     rm_viirs_obj.data["ok_data"] = ok_data
-    
+
     for channel in viirs_obj.channels:
         if viirs_obj.channels[channel] is not None:
             rm_viirs_obj.channels[channel] = get_sample_from_neighbour_info(
@@ -325,19 +326,19 @@ def do_matching(cfg, n19_obj, viirs_obj):
                                                        valid_out,
                                                        indices)
     rm_viirs_obj.lon = get_sample_from_neighbour_info('nn', target_def.shape,
-                                                       viirs_obj.lon,
-                                                       valid_in,
-                                                       valid_out,
-                                                       indices)
+                                                      viirs_obj.lon,
+                                                      valid_in,
+                                                      valid_out,
+                                                      indices)
     rm_viirs_obj.lat = get_sample_from_neighbour_info('nn', target_def.shape,
-                                                       viirs_obj.lat,
-                                                       valid_in,
-                                                       valid_out,
-                                                       indices)                
-        
+                                                      viirs_obj.lat,
+                                                      valid_in,
+                                                      valid_out,
+                                                      indices)
+
     # Add lat/lon
     rm_viirs_obj.mask = rm_viirs_obj.channels["ch_tb11"].mask
-    
+
     calc_time_diff(rm_viirs_obj, n19_obj)
     mask_time_pixels(rm_viirs_obj, n19_obj, cfg)
     crop_nonvalid_data(n19_obj, rm_viirs_obj)
@@ -349,8 +350,8 @@ def get_data_for_one_case(cfg, n19f, viirsf):
     n19_obj = read_data(n19f, cfg, exclude=["ch_r16"])
     viirs_obj = read_data(viirsf, cfg)
     n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
-    #xh = 15
-    #cutColumns(n19_obj, list(
+    # xh = 15
+    # cutColumns(n19_obj, list(
     #    range(n19_center_scanline - xh, n19_center_scanline + xh + 1)))
     n19_use, npp_use = findEdges(n19_obj, viirs_obj, cfg.accept_time_diff)
     cutEdges(n19_obj, n19_use)
@@ -364,8 +365,6 @@ def get_data_for_one_case(cfg, n19f, viirsf):
 
     rm_viirs_obj = do_matching(cfg, n19_obj, viirs_obj)
     return n19_obj, rm_viirs_obj
-
-
 
 
 def get_matchups(cfg, n19f, viirsf):
@@ -386,6 +385,7 @@ def get_matchups(cfg, n19f, viirsf):
         return None, None
     return n19_obj, rm_viirs_obj
 
+
 def get_merged_matchups_for_files(cfg, files):
     n19_obj_all = Lvl1cObj(cfg)
     viirs_obj_all = Lvl1cObj(cfg)
@@ -394,8 +394,9 @@ def get_merged_matchups_for_files(cfg, files):
         n19_obj, viirs_obj = read_matchupdata(cfg, filename)
         viirs_obj_all += viirs_obj
         n19_obj_all += n19_obj
-    return n19_obj_all, viirs_obj_all    
-                
+    return n19_obj_all, viirs_obj_all
+
+
 def create_matchup_data_for_files(cfg, n19_files, npp_files):
     counter = 0
     for n19f in n19_files:
@@ -413,6 +414,7 @@ def create_matchup_data_for_files(cfg, n19_files, npp_files):
                         npp_start_time_s),
                     n19_obj, viirs_obj)
 
+
 def merge_matchup_data_for_files(cfg, n19_files, npp_files):
     n19_obj_all = Lvl1cObj(cfg)
     viirs_obj_all = Lvl1cObj(cfg)
@@ -425,8 +427,8 @@ def merge_matchup_data_for_files(cfg, n19_files, npp_files):
                 print(counter, os.path.basename(n19f), os.path.basename(viirsf))
                 viirs_obj_all += viirs_obj
                 n19_obj_all += n19_obj
-    return n19_obj_all, viirs_obj_all    
-                
+    return n19_obj_all, viirs_obj_all
+
 
 def write_matchupdata(filename, n19_obj, viirs_obj):
 
@@ -450,6 +452,7 @@ def write_matchupdata(filename, n19_obj, viirs_obj):
         f.create_dataset("viirs_lon", data=viirs_obj.lon,
                          compression=COMPRESS_LVL)
 
+
 def read_matchupdata(cfg, filename):
     n19_obj = Lvl1cObj(cfg)
     viirs_obj = Lvl1cObj(cfg)
@@ -458,14 +461,17 @@ def read_matchupdata(cfg, filename):
     with h5py.File(filename, 'r') as match_fh:
         for channel in cfg.channel_list + ["sunzenith", "satzenith"]:
             viirs_obj.channels[channel] = match_fh["viirs_{:s}".format(channel)][...]
-            viirs_obj.channels[channel] = np.ma.masked_array(viirs_obj.channels[channel], mask=viirs_obj.channels[channel]<0)
+            viirs_obj.channels[channel] = np.ma.masked_array(
+                viirs_obj.channels[channel], mask=viirs_obj.channels[channel] < 0)
             if channel in n19_var_list:
                 n19_obj.channels[channel] = match_fh["avhrr_{:s}".format(channel)][...]
-                n19_obj.channels[channel] = np.ma.masked_array(n19_obj.channels[channel], mask=n19_obj.channels[channel]<0)
-        viirs_obj.data["abs_time_diff_s"] =  match_fh["abs_time_diff_s"][...]
-        viirs_obj.data["distance_between_pixels_m"] =  match_fh["distance_between_pixels_m"][...]
+                n19_obj.channels[channel] = np.ma.masked_array(
+                    n19_obj.channels[channel], mask=n19_obj.channels[channel] < 0)
+        viirs_obj.data["abs_time_diff_s"] = match_fh["abs_time_diff_s"][...]
+        viirs_obj.data["distance_between_pixels_m"] = match_fh["distance_between_pixels_m"][...]
 
     return n19_obj, viirs_obj
+
 
 if __name__ == '__main__':
     pass
