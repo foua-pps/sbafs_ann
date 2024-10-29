@@ -4,23 +4,29 @@ To use from level1c4pps:
 ----------------------------------
 
 from sbafs_ann.convert_vgac import convert_to_vgac_with_nn
-scene = convert_to_vgac_with_nn(scene, SBAF_NN_DIR=sbaf_nn_dir)
+scene = convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file)
 
-The convert_vgac module is a bit hardcoded at the moment. There is room for improvment!
+It is possible to create matchup data in a separate step:
+----------------------------------
+create_matchup_data.py --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_dir ~/SBAF_NN/DATA/TRAIN/ -o ~/SBAF_NN/DATA/TRAIN/
 
 
-There is now two networks trained:
+The two networks trained for version 1
 ----------------------------------
 
 train_sbafs.py --accept_sunz_min 90 --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_train ~/SBAF_NN/DATA/TEST/ --n19_valid ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_tb11 ch_tb12 ch_tb37 ch_tb85
-
 train_sbafs.py --accept_sunz_max 89 --accept_time_diff 1 --accept_satz_max 15 --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_train ~/SBAF_NN/DATA/TRAIN/ --n19_valid ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_r06 ch_r09 ch_tb11 ch_tb12 ch_tb37 ch_r16 ch_tb85
 
+There will be three network trained
+----------------------------------
+train_sbafs.py --accept_sunz_min 90 --accept_satz_max 25 --train_dir ~/SBAF_NN/DATA/TRAIN/ --valid_dir ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_tb11 ch_tb12 ch_tb37 ch_tb85
+train_sbafs.py --accept_sunz_max 80 --accept_satz_max 25 --train_dir ~/SBAF_NN/DATA/TRAIN/ --valid_dir ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_r06 ch_r09 ch_tb11 ch_tb12 ch_tb37 ch_r16 ch_tb85
+train_sbafs.py --accept_sunz_max 89 --accept_sunz_min 80 --accept_satz_max 25 --train_dir ~/SBAF_NN/DATA/TRAIN/ --valid_dir ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_r06 ch_r09 ch_tb11 ch_tb12 ch_tb37 ch_r16 ch_tb85
 
 To make images for these:
 -------------------------
-apply_sbafs.py --nn_dir ~/SBAF_NN// --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_test ~/SBAF_NN/DATA/TEST/ --vgac_dir ~/VGAC_dir/ --accept_sunz_max 89 --accept_time_diff 1 --accept_satz_max 15  --plot_dir ~/temp/ ch_r06 ch_r09 ch_tb11 ch_tb12 ch_tb37 ch_r16 ch_tb85
- apply_sbafs.py --nn_dir ~/SBAF_NN/ --accept_sunz_min 90 --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_test ~/SBAF_NN/DATA/TEST/ --vgac_dir ~/VGAC_dir/ --plot_dir ~/temp/ ch_tb11 ch_tb12 ch_tb37 ch_tb85
+apply_sbafs.py --nn_cfg_file ~/SBAF_NN/ch4_satz_max_25_SUNZ_90_180_tdiff_300_sec_20241029.cfg --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_test ~/SBAF_NN/DATA/TEST/ --vgac_dir ~/VGAC_PPS_VG_SBAF/
+
 
 Important stuff:
 -------------------------
