@@ -121,6 +121,7 @@ def getChannel(sati, chn, ang_masked):
                 if 'ch_r' in sati[imageN].id_tag:
                     if sati[imageN].sun_zenith_angle_correction_applied == 'False':
                         #                         from level1c4pps import apply_sunz_correction
+                        print("Making sunzenith angle correction for channel {:s}".format(chn))
                         scaler = get_sunz_correction(sati)
                         ret = ret * scaler
                 if ret.mask.ndim != 0:
@@ -206,6 +207,7 @@ def cutMasked(obj):
 
     
 def read_data(fname, cfg, exclude=[]):
+    print("Reading {:s}".format(fname))
     my_obj = Lvl1cObj(cfg)
     my_sat = netCDF4.Dataset(fname, 'r', format='NETCDF4')
     if cfg.accept_satz_max == 180:
