@@ -1,15 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# Copyright (c) 2024- sbaf_ann developers
+#
+# This file is part of sbaf_ann.
+#
+# atrain_match is free software: you can redistribute it and/or modify it
+# under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# atrain_match is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with atrain_match.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
-Created on 2023-03-30
-
-Copyright (c) 2023 Erik Johansson
-
-@author:     Erik Johansson
-@contact:    <erik.johansson@smhi.se>
-
-'''
 
 import yaml
 import numpy as np
@@ -33,7 +40,7 @@ NOAA19_CHANNELS = ["ch_r06", "ch_r09", "ch_tb11", "ch_tb12", "ch_tb37"]
 
 
 def get_cold_37_from_viirs(viirs, n19):
-
+    """Handle missing values in n19 data by copying from viirs."""
     update = np.logical_and(
         n19.channels["ch_tb37"].mask, ~viirs.channels["ch_tb37"].mask)
     n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update]
@@ -41,21 +48,27 @@ def get_cold_37_from_viirs(viirs, n19):
 
 
 def warn_get_data_to_use_cfg(cfg, viirs, n19):
-
+    """Check if data is discarded. If data is not discarded might want to rerun matchup data."""
+    might_need_rerun = False
     for val, var in zip([cfg.accept_time_diff, cfg.max_distance_between_pixels_m],
                         ["abs_time_diff_s", "distance_between_pixels_m"]):
         if val > np.max(viirs.data[var]):
+            might_need_rerun = True
             print("No data filterd out due to {:s}, max diff {:3.1f}.".format(var, np.max(viirs.data[var])))
     for val, var in zip([cfg.accept_sunz_max, cfg.accept_satz_max],
                         ["sunzenith", "satzenith"]):
         if val > np.max(viirs.channels[var]) and val > np.max(n19.channels[var]):
+            might_need_rerun = True
             print("No data filterd out due to {:s}, max viirs {:3.1f} avhrr {:3.1f}.".format(
                 var, np.max(viirs.channels[var]), np.max(n19.channels[var])))
     for val, var in zip([cfg.accept_sunz_min],
                         ["sunzenith"]):
         if val < np.min(viirs.channels[var]) and val < np.min(n19.channels[var]):
+            might_need_rerun = True
             print("No data filterd out due to {:s}, min viirs {:3.1f} avhrr {:3.1f}.".format(
                 var, np.min(viirs.channels[var]), np.min(n19.channels[var])))
+    if might_need_rerun:
+        print("You might need to rerun matchup data!")
 
 
 def get_data_to_use(cfg, viirs, n19):
