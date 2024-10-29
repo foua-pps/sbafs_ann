@@ -40,7 +40,10 @@ def rearrange_ydata(cfg, val):
         if channel in ["M16", "M12"]:
             val[:, ind, :] += val[:, ind_m15, :]
 
-
+def get_error_estimate(array, ind):
+    return (0.5 * np.abs(array[:, ind, 1] - array[:, ind, 0])
+            + 0.5 * np.abs(array[:, ind, 1] - array[:, ind, 2]))
+           
 def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
     """Apply NN SBAFS to scene."""
     day_cfg = read_nn_config(day_cfg_file)
@@ -60,16 +63,21 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
     night = scene["sunzenith"].values >= 89
     twilight = np.logical_and(scene["sunzenith"].values < 89, scene["sunzenith"].values > 80)
 
+    ch_size = scene["M15"].values.shape
     for ind, channel in enumerate(day_cfg["channel_list_mband_out"]):
-        scene[channel].values = day_val[:, ind, 1].reshape(scene[channel].values.shape)
+        scene[channel].values = day_val[:, ind, 1].reshape(ch_size)
+        scene[channel + "_err"] = scene[channel].copy()
+        scene[channel + "_err"].attrs.pop("id_tag")
+        scene[channel + "_err"].attrs["add_offset"] = 0
+        scene[channel + "_err"].values = get_error_estimate(day_val, ind).reshape(ch_size)
 
     for ind, channel in enumerate(night_cfg["channel_list_mband_out"]):
-        scene[channel].values[night] = night_val[:, ind, 1].reshape(
-            scene[channel].values.shape)[night]
-
+        scene[channel].values[night] = night_val[:, ind, 1].reshape(ch_size)[night] 
+        scene[channel + "_err"].values[night] = get_error_estimate(night_val, ind).reshape(ch_size)[night]
+        
     for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
-        scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(
-            scene[channel].values.shape)[twilight]
+        scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(ch_size)[twilight]
+        scene[channel + "_err"].values[twilight] = get_error_estimate(twilight_val, ind).reshape(ch_size)[twilight]
     return scene
 
 
