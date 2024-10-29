@@ -123,7 +123,7 @@ def set_up_nn_file_names(cfg, nn_dir):
         "v_loss_file": "{:s}/{:s}_vloss.txt".format(nn_dir, nn_pattern),
         "nn_cfg_file": "{:s}/{:s}.cfg".format(nn_dir, nn_pattern),
         "channel_list": cfg.channel_list,
-        "channel_list_mband":  mband_list,
+        "channel_list_mband": mband_list,
         "channel_list_mband_out": mband_list_out,
         "n_truths": len(mband_list_out)
     }
@@ -198,7 +198,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
             vgac2_obj_all.channels[channel] = 0 * viirs_obj_all.channels[channel]
             try:
                 vgac2_obj_all.channels[channel][~n19_obj_all.mask] = ytest[:, ind, 1].copy()
-            except:
+            except BaseException:
                 import pdb
                 pdb.set_trace()
             vgac2_obj_all.channels[channel].mask = n19_obj_all.mask

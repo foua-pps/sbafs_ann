@@ -81,7 +81,7 @@ def plotScatterHisto(
     ny_y2 = k2a * np.square(xn) + k2b * xn + m2
     MSE = np.square(y_flat - x_flat).mean()
     MAE = np.abs(y_flat - x_flat).mean()
-    PE1 = 100*np.sum(np.abs(y_flat - x_flat) > 1)/len(y_flat)
+    PE1 = 100 * np.sum(np.abs(y_flat - x_flat) > 1) / len(y_flat)
     RMSE = np.sqrt(MSE)
     ax.plot(xn, xn, 'r--', lw=1.0,
             label='y=x RMSE={:3.3f} MAE = {:3.3f} PE1= {:3.1f} N={:d}'.format(RMSE, MAE, PE1, len(x_flat)), )

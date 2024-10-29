@@ -82,7 +82,7 @@ class Lvl1cObj(object):
         try:
             self.lat = np.concatenate([self.lat, other.lat])
             self.lon = np.concatenate([self.lon, other.lon])
-        except:
+        except BaseException:
             self.lat = None
             self.lon = None
         if self.mask is not None:
