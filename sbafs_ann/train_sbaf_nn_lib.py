@@ -51,19 +51,13 @@ def tilted_loss(n_params, quantiles, y_true, y_pred):
     return tf.reduce_mean(v)
 
 
-def apply_network(
-        Xdata,
-        coeff_file,
-        xscale,
-        yscale,
-        xmean,
-        ymean,
-        NUMBER_OF_TRUTHS):
+def apply_network(nn_cfg, Xdata):
 
-    Xtrain_mean = np.asarray([np.loadtxt(xmean)]).astype(np.float32)
-    Xtrain_scale = np.asarray([np.loadtxt(xscale)]).astype(np.float32)
-    ytrain_mean = np.asarray([np.loadtxt(ymean)]).astype(np.float32)
-    ytrain_scale = np.asarray([np.loadtxt(yscale)]).astype(np.float32)
+    n_truths = nn_cfg["n_truths"]
+    Xtrain_mean = np.asarray([np.loadtxt(nn_cfg["xmean"])]).astype(np.float32)
+    Xtrain_scale = np.asarray([np.loadtxt(nn_cfg["xscale"])]).astype(np.float32)
+    ytrain_mean = np.asarray([np.loadtxt(nn_cfg["ymean"])]).astype(np.float32)
+    ytrain_scale = np.asarray([np.loadtxt(nn_cfg["yscale"])]).astype(np.float32)
     Xtrain_scale_inv = (1.0 / Xtrain_scale).astype(np.float32)
     Ok_rows = [~np.isnan(Xdata[ind, :]).any() for ind in range(Xdata.shape[0])]
     model = Sequential()
@@ -71,47 +65,21 @@ def apply_network(
     model.add(Dense(N_HIDDEN_LAYER_1, activation=ACTIVATION))
     model.add(Dense(N_HIDDEN_LAYER_2, activation=ACTIVATION))
     model.add(Dense(N_HIDDEN_LAYER_3, activation=ACTIVATION))
-    model.add(Dense(NUMBER_OF_TRUTHS * len(PERCENTILE), activation='linear'))
-    model.load_weights(filepath=coeff_file)
+    model.add(Dense(n_truths  * len(PERCENTILE), activation='linear'))
+    model.load_weights(filepath=nn_cfg["coeff_file"])
     X_in = (Xdata - Xtrain_mean) * Xtrain_scale_inv
     out = model.predict(X_in[Ok_rows, :], batch_size=int(0.2 * Xdata.shape[0]))
-    out = out.reshape(-1, NUMBER_OF_TRUTHS, len(PERCENTILE))
+    out = out.reshape(-1, n_truths, len(PERCENTILE))
     out = out * ytrain_scale[:, :, np.newaxis] + ytrain_mean[:, :, np.newaxis]
     out_full = np.nan + \
-        np.empty((Xdata.shape[0], NUMBER_OF_TRUTHS, len(PERCENTILE)))
+        np.empty((Xdata.shape[0], n_truths, len(PERCENTILE)))
     out_full[Ok_rows, :, :] = out
     return out_full
 
 
-def apply_network_nn_name(
-        Xdata,
-        NN_NAME="test",
-        OUTPUT_DIR=".",
-        NUMBER_OF_TRUTHS=5):
+def train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid):
 
-    coeff_file = "{:s}/{:s}.keras".format(OUTPUT_DIR, NN_NAME)
-    xmean = "{:s}/Xtrain_mean_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
-    xscale = "{:s}/Xtrain_scale_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
-    ymean = "{:s}/ytrain_mean_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
-    yscale = "{:s}/ytrain_scale_{:s}.txt".format(OUTPUT_DIR, NN_NAME)
-    return apply_network(
-        Xdata,
-        coeff_file,
-        xscale,
-        yscale,
-        xmean,
-        ymean,
-        NUMBER_OF_TRUTHS)
-
-
-def train_network(
-        Xtrain,
-        ytrain,
-        Xvalid,
-        yvalid,
-        OUTPUT_DIR=".",
-        NN_NAME="test"):
-    NUMBER_OF_TRUTHS = ytrain.shape[1]
+    n_truths = ytrain.shape[1]
     # Scale data
     scaler = preprocessing.StandardScaler().fit(Xtrain)
     Xtrain = scaler.transform(Xtrain)
@@ -120,15 +88,10 @@ def train_network(
     ytrain = scaler2.transform(ytrain)
     yvalid = scaler2.transform(yvalid)
 
-    scaler_file = os.path.join(OUTPUT_DIR, "{scaler_type}_%s.txt" % (NN_NAME))
-    np.savetxt(scaler_file.format(scaler_type="Xtrain_mean"),
-               scaler.mean_, delimiter=',')
-    np.savetxt(scaler_file.format(scaler_type="Xtrain_scale"),
-               scaler.scale_, delimiter=',')
-    np.savetxt(scaler_file.format(scaler_type="ytrain_mean"),
-               scaler2.mean_, delimiter=',')
-    np.savetxt(scaler_file.format(scaler_type="ytrain_scale"),
-               scaler2.scale_, delimiter=',')
+    np.savetxt(nn_cfg["xmean"], scaler.mean_, delimiter=',')
+    np.savetxt(nn_cfg["xscale"], scaler.scale_, delimiter=',')
+    np.savetxt(nn_cfg["ymean"], scaler2.mean_, delimiter=',')
+    np.savetxt(nn_cfg["yscale"], scaler2.scale_, delimiter=',')
 
     np.random.seed(3)
 
@@ -150,25 +113,20 @@ def train_network(
     if N_HIDDEN_LAYER_3 > 0:
         model.add(Dense(N_HIDDEN_LAYER_3,
                   kernel_initializer=INIT_DIST, activation=ACTIVATION))
-        model.add(Dense(NUMBER_OF_TRUTHS * len(PERCENTILE),
+        model.add(Dense(n_truths * len(PERCENTILE),
                   kernel_initializer=INIT_DIST, activation='linear'))
-    model.compile(loss=lambda y, f: tilted_loss(NUMBER_OF_TRUTHS,
+    model.compile(loss=lambda y, f: tilted_loss(n_truths,
                                                 0.01 * np.array(PERCENTILE),
                                                 # , optimizer='adagrad')
                                                 y, f), optimizer=sgd)
-
-    coeff_file = os.path.join(OUTPUT_DIR, "%s.keras" % (NN_NAME))
     checkpointer = keras.callbacks.EarlyStopping(
         monitor='val_loss', patience=PATIENCE, verbose=1, mode='auto')
     checkpointer2 = keras.callbacks.ModelCheckpoint(
-        filepath=coeff_file,
+        filepath=nn_cfg["coeff_file"],
         monitor='val_loss',
         verbose=0,
         save_best_only=True,
         mode='min')
-    # nnet=model.fit(Xtrain, ytrain, batch_size=250, nb_epoch=2650,
-    # validation_datay=(Xvalid,
-    # yvalid),callbacks=[checkpointer,checkpointer2],shuffle=True, verbose=2)
     nnet = model.fit(
         Xtrain,
         ytrain,
@@ -185,10 +143,8 @@ def train_network(
 
     training_loss = nnet.history['loss']
     validation_loss = nnet.history['val_loss']
-    t_loss_file = os.path.join(OUTPUT_DIR, "%s_tloss.txt" % (NN_NAME))
-    v_loss_file = os.path.join(OUTPUT_DIR, "%s_vloss.txt" % (NN_NAME))
-    np.savetxt(t_loss_file, training_loss, delimiter=',')
-    np.savetxt(v_loss_file, validation_loss, delimiter=',')
+    np.savetxt(nn_cfg["t_loss_file"], training_loss, delimiter=',')
+    np.savetxt(nn_cfg["v_loss_file"], validation_loss, delimiter=',')
     print(min(training_loss))
     print(min(validation_loss))
 

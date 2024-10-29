@@ -11,6 +11,7 @@ Copyright (c) 2023 Erik Johansson
 
 '''
 
+import yaml
 import numpy as np
 import netCDF4
 from pyresample.geometry import SwathDefinition
@@ -20,6 +21,15 @@ import datetime
 import os
 
 
+PPS_MBAND = {"ch_r06": "M05",
+             "ch_r09": "M07",
+             "ch_r13": "M09",
+             "ch_r16": "M10",
+             "ch_tb37": "M12",
+             "ch_tb85": "M14",
+             "ch_tb11": "M15",
+             "ch_tb12": "M16"}
+NOAA19_CHANNELS = ["ch_r06", "ch_r09", "ch_tb11", "ch_tb12", "ch_tb37"]
 
 
 def get_cold_37_from_viirs(viirs, n19):
@@ -42,9 +52,9 @@ def warn_get_data_to_use_cfg(cfg, viirs, n19):
             var, np.max(viirs.channels[var]), np.max(n19.channels[var])))
     for val, var  in zip([cfg.accept_sunz_min],
                          ["sunzenith"]):
-        #if val < np.min(viirs.channels[var]) and val < np.min(n19.channels[var]):
-        print("No data filterd out due to {:s}, min viirs {:3.1f} avhrr {:3.1f}.".format(
-            var, np.min(viirs.channels[var]), np.min(n19.channels[var])))            
+        if val < np.min(viirs.channels[var]) and val < np.min(n19.channels[var]):
+            print("No data filterd out due to {:s}, min viirs {:3.1f} avhrr {:3.1f}.".format(
+                var, np.min(viirs.channels[var]), np.min(n19.channels[var])))            
 
 
 def get_data_to_use(cfg, viirs, n19):
@@ -89,40 +99,96 @@ def create_training_data(cfg, viirs, n19):
 
 
 def get_nn_name_from_cfg(cfg):
-    return 'ch{:d}_SATZ_less_{:d}_SUNZ_{:d}_{:d}_TD_{:d}_sec'.format(
+    now = datetime.datetime.utcnow().strftime("%Y%m%d")
+    return 'ch{:d}_satz_max_{:d}_SUNZ_{:d}_{:d}_tdiff_{:d}_sec_{:s}'.format(
         len(cfg.channel_list),
         cfg.accept_satz_max,
         cfg.accept_sunz_min,
         cfg.accept_sunz_max,
-        cfg.accept_time_diff)
+        cfg.accept_time_diff,
+        now)
+
+def set_up_nn_file_names(cfg, nn_dir):
+    nn_pattern = get_nn_name_from_cfg(cfg)
+    mband_list = [PPS_MBAND[channel] for channel in cfg.channel_list]
+    mband_list_out = [PPS_MBAND[channel] for channel in cfg.channel_list if channel in NOAA19_CHANNELS]
+    nn_cfg = { 
+        "coeff_file": "{:s}/{:s}.keras".format(nn_dir, nn_pattern),
+        "xmean": "{:s}/Xtrain_mean_{:s}.txt".format(nn_dir, nn_pattern),
+        "xscale": "{:s}/Xtrain_scale_{:s}.txt".format(nn_dir, nn_pattern),
+        "ymean": "{:s}/ytrain_mean_{:s}.txt".format(nn_dir, nn_pattern),
+        "yscale": "{:s}/ytrain_scale_{:s}.txt".format(nn_dir, nn_pattern),
+        "t_loss_file": "{:s}/{:s}_tloss.txt".format(nn_dir, nn_pattern),
+        "v_loss_file": "{:s}/{:s}_vloss.txt".format(nn_dir, nn_pattern),
+        "nn_cfg_file": "{:s}/{:s}.cfg".format(nn_dir, nn_pattern),
+        "channel_list": cfg.channel_list,
+        "channel_list_mband":  mband_list,
+        "channel_list_mband_out": mband_list_out,
+        "n_truths": len(mband_list_out)
+        }
+    for cfg_name in ["accept_satz_max",
+                     "accept_sunz_max",
+                     "accept_sunz_min",
+                     "accept_time_diff",
+                     "max_distance_between_pixels_m"]:
+        nn_cfg[cfg_name] = getattr(cfg, cfg_name)
+    write_nn_config(nn_cfg)
+    return nn_cfg
 
 
+def write_nn_config(nn_cfg):
+    nn_cfg_to_file = nn_cfg.copy()
+    for key in ["coeff_file", "xmean", "ymean", "xscale", "yscale", "nn_cfg_file", "t_loss_file", "v_loss_file"]:
+        nn_cfg_to_file[key] = os.path.basename(nn_cfg_to_file[key])
+    with open(nn_cfg["nn_cfg_file"], "w") as yaml_file:
+        yaml.dump(nn_cfg_to_file, yaml_file)
+
+
+def read_nn_config(nn_cfg_file):
+    nn_dir = os.path.dirname(nn_cfg_file)
+    with open(nn_cfg_file) as y_fh:
+        nn_cfg = yaml.safe_load(y_fh.read())
+    for key in ["coeff_file", "xmean", "ymean", "xscale", "yscale", "nn_cfg_file", "t_loss_file", "v_loss_file"]:
+        nn_cfg[key] = os.path.join(nn_dir, nn_cfg[key])
+    return nn_cfg
+
+       
 def train_network_for_files(cfg, files_train, files_valid):
     from sbafs_ann.train_sbaf_nn_lib import train_network
     from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
-    nn_name = get_nn_name_from_cfg(cfg)
+    nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
     Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_valid)
     Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all)
-    train_network(Xtrain, ytrain, Xvalid, yvalid,
-                  NN_NAME=nn_name, OUTPUT_DIR=cfg.output_dir)
+    train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
+def update_cfg_with_nn_cfg(cfg, nn_cfg):
+    cfg.channel_list = nn_cfg["channel_list"]
+    for cfg_name in ["accept_satz_max",
+                     "accept_sunz_max",
+                     "accept_sunz_min",
+                     "accept_time_diff",
+                     "max_distance_between_pixels_m"]:
+        if getattr(cfg, cfg_name) is None:
+           setattr(cfg, cfg_name, nn_cfg[cfg_name])
+            
            
 def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
     from sbafs_ann.plots_lib import do_sbaf_plots
-    from sbafs_ann.train_sbaf_nn_lib import apply_network_nn_name
+    from sbafs_ann.train_sbaf_nn_lib import apply_network
     from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
-    nn_name = get_nn_name_from_cfg(cfg)
+    
+    nn_cfg = read_nn_config(cfg.nn_cfg_file)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+    
     n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
     #n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
-    ytest = apply_network_nn_name(
-        Xtest,
-        NN_NAME=nn_name,
-        NUMBER_OF_TRUTHS=ytest.shape[1],
-        OUTPUT_DIR=cfg.nn_dir)
+    ytest = apply_network(
+        nn_cfg,
+        Xtest)
 
     vgac2_obj_all = Lvl1cObj(cfg)
     for ind, channel in enumerate(cfg.channel_list):
