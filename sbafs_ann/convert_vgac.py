@@ -1,66 +1,53 @@
 import numpy as np
 import os
 from sbafs_ann.train_sbaf_nn_lib import apply_network
+from sbafs_ann.sbaf_ann_lib import read_nn_config
 
-
-def convert_to_vgac_with_nn(scene, SBAF_NN_DIR):
-    channel_list_day = ["M05", "M07", "M15", "M16", "M12", "M10", "M14"]
-    channel_list_day_out = ["M05", "M07", "M15", "M16", "M12"]
-    coeff_day = os.path.join(
-        SBAF_NN_DIR, "ch7_SATZ_less_15_SUNZ_0_89_TD_1_min.keras")
-    xscale_day = os.path.join(
-        SBAF_NN_DIR, "Xtrain_scale_ch7_SATZ_less_15_SUNZ_0_89_TD_1_min.txt")
-    xmean_day = os.path.join(
-        SBAF_NN_DIR, "Xtrain_mean_ch7_SATZ_less_15_SUNZ_0_89_TD_1_min.txt")
-    yscale_day = os.path.join(
-        SBAF_NN_DIR, "ytrain_scale_ch7_SATZ_less_15_SUNZ_0_89_TD_1_min.txt")
-    ymean_day = os.path.join(
-        SBAF_NN_DIR, "ytrain_mean_ch7_SATZ_less_15_SUNZ_0_89_TD_1_min.txt")
-    channel_list_night = ["M15", "M16", "M12", "M14"]
-    channel_list_night_out = ["M15", "M16", "M12"]
-    coeff_night = os.path.join(
-        SBAF_NN_DIR, "ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.keras")
-    xscale_night = os.path.join(
-        SBAF_NN_DIR, "Xtrain_scale_ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.txt")
-    xmean_night = os.path.join(
-        SBAF_NN_DIR, "Xtrain_mean_ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.txt")
-    yscale_night = os.path.join(
-        SBAF_NN_DIR, "ytrain_scale_ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.txt")
-    ymean_night = os.path.join(
-        SBAF_NN_DIR, "ytrain_mean_ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.txt")
-
-    Xdata = np.empty((np.size(scene["M15"]), len(channel_list_day)))
-    for ind, channel in enumerate(channel_list_day):
+def reorganize_data(cfg, scene):
+    """Reorganize data to apply network."""
+    Xdata = np.empty((np.size(scene["M15"]), len(cfg["channel_list_mband"])))
+    for ind, channel in enumerate(cfg["channel_list_mband"]):
         Xdata[:, ind] = np.copy(scene[channel].values.ravel())
         if channel in ["M16", "M12"]:
             Xdata[:, ind] -= np.copy(scene["M15"].values.ravel())
-    day_val = apply_network(Xdata, coeff_day, xscale_day,
-                            yscale_day, xmean_day, ymean_day, NUMBER_OF_TRUTHS=5)
+    return Xdata
 
-    Xdata = np.empty((np.size(scene["M15"]), len(channel_list_night)))
-    for ind, channel in enumerate(channel_list_night):
-        Xdata[:, ind] = np.copy(scene[channel].values.ravel())
+def rearrange_ydata(cfg, val):
+    """For channel 12 and 3.7 data is trained with differences to 11µm."""
+    ind_m15 = cfg["channel_list_mband_out"].index("M15")
+    for ind, channel in enumerate(cfg["channel_list_mband_out"]):
         if channel in ["M16", "M12"]:
-            Xdata[:, ind] -= np.copy(scene["M15"].values.ravel())
-    night_val = apply_network(Xdata, coeff_night, xscale_night,
-                              yscale_night, xmean_night, ymean_night, NUMBER_OF_TRUTHS=3)
+            val[:, ind, :] += val[:, ind_m15, :]
+            
+def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
+    """Apply NN SBAFS to scene."""
+    day_cfg = read_nn_config(day_cfg_file)
+    night_cfg = read_nn_config(night_cfg_file)
+    twilight_cfg = read_nn_config(twilight_cfg_file)
+    
+    Xdata =  reorganize_data(day_cfg, scene)
+    day_val = apply_network(day_cfg, Xdata)
+    rearrange_ydata(day_cfg, day_val)
+    Xdata =  reorganize_data(night_cfg, scene)
+    night_val = apply_network(night_cfg, Xdata)
+    rearrange_ydata(night_cfg, night_val)
+    Xdata =  reorganize_data(twilight_cfg, scene)
+    twilight_val = apply_network(twilight_cfg, Xdata)
+    rearrange_ydata(twilight_cfg, twilight_val)
 
-    night = scene["sunzenith"].values > 88
-    for ind, channel in enumerate(channel_list_day_out):
-        scene[channel].values = day_val[:, ind, 1].reshape(
-            scene[channel].values.shape)
-        if channel in ["M16", "M12"]:
-            scene[channel].values += day_val[:,
-                                             channel_list_day_out.index("M15"), 1].reshape(scene[channel].values.shape)
-    for ind, channel in enumerate(channel_list_night_out):
+    night = scene["sunzenith"].values >= 89
+    twilight = np.logical_and(scene["sunzenith"].values < 89, scene["sunzenith"].values > 80)
+    
+    for ind, channel in enumerate(day_cfg["channel_list_mband_out"]):
+        scene[channel].values = day_val[:, ind, 1].reshape(scene[channel].values.shape)
+
+    for ind, channel in enumerate(night_cfg["channel_list_mband_out"]):
         scene[channel].values[night] = night_val[:, ind, 1].reshape(
             scene[channel].values.shape)[night]
-        if channel in ["M16", "M12"]:
-            scene[channel].values[night] += night_val[:, channel_list_night_out.index(
-                "M15"), 1].reshape(scene[channel].values.shape)[night]
 
-    del scene["M10"]
-    del scene["M14"]
+    for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
+        scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(
+            scene[channel].values.shape)[twilight]
     return scene
 
 
