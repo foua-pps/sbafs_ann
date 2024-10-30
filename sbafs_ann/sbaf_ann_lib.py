@@ -223,7 +223,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     update_cfg_with_nn_cfg(cfg, nn_cfg)
 
     n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
-    # n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
+
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=False)
     ytest = apply_network(
         nn_cfg,
@@ -249,10 +249,15 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     fig_end = nn_cfg["nn_pattern"]
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
-    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-VX",
-                  vgac_obj_all, n19_obj_all)
 
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
+    
+    if len(vgac_files) > 1:
+        n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
+        do_sbaf_plots(cfg, title_end, fig_end, "SBAF-VX",
+                      vgac_obj_all, n19_obj_all)
+
+
 
 
 if __name__ == '__main__':
