@@ -46,19 +46,24 @@ def get_error_estimate(array, ind):
            
 def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
     """Apply NN SBAFS to scene."""
-    day_cfg = read_nn_config(day_cfg_file)
-    night_cfg = read_nn_config(night_cfg_file)
-    twilight_cfg = read_nn_config(twilight_cfg_file)
 
+
+    day_cfg = read_nn_config(day_cfg_file)
     Xdata = reorganize_data(day_cfg, scene)
     day_val = apply_network(day_cfg, Xdata)
     rearrange_ydata(day_cfg, day_val)
+
+    night_cfg = read_nn_config(night_cfg_file)
     Xdata = reorganize_data(night_cfg, scene)
     night_val = apply_network(night_cfg, Xdata)
     rearrange_ydata(night_cfg, night_val)
-    Xdata = reorganize_data(twilight_cfg, scene)
-    twilight_val = apply_network(twilight_cfg, Xdata)
-    rearrange_ydata(twilight_cfg, twilight_val)
+
+    
+    if twilight_cfg_file is not None:
+        twilight_cfg = read_nn_config(twilight_cfg_file)
+        Xdata = reorganize_data(twilight_cfg, scene)
+        twilight_val = apply_network(twilight_cfg, Xdata)
+        rearrange_ydata(twilight_cfg, twilight_val)
 
     night = scene["sunzenith"].values >= 89
     twilight = np.logical_and(scene["sunzenith"].values < 89, scene["sunzenith"].values > 80)
@@ -75,9 +80,10 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
         scene[channel].values[night] = night_val[:, ind, 1].reshape(ch_size)[night] 
         scene[channel + "_err"].values[night] = get_error_estimate(night_val, ind).reshape(ch_size)[night]
         
-    for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
-        scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(ch_size)[twilight]
-        scene[channel + "_err"].values[twilight] = get_error_estimate(twilight_val, ind).reshape(ch_size)[twilight]
+    if twilight_cfg_file is not None:       
+        for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
+            scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(ch_size)[twilight]
+            scene[channel + "_err"].values[twilight] = get_error_estimate(twilight_val, ind).reshape(ch_size)[twilight]
     return scene
 
 
