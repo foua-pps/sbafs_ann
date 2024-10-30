@@ -117,7 +117,6 @@ def plotScatterHisto(
     ax.legend(loc=2)
     ax.set_aspect(1)
     fig.savefig(figname + '.png')
-    fig.show()
 
 
 def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):

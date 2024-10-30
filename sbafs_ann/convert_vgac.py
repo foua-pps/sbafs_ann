@@ -47,7 +47,6 @@ def get_error_estimate(array, ind):
 def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
     """Apply NN SBAFS to scene."""
 
-
     day_cfg = read_nn_config(day_cfg_file)
     Xdata = reorganize_data(day_cfg, scene)
     day_val = apply_network(day_cfg, Xdata)
@@ -58,7 +57,6 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
     night_val = apply_network(night_cfg, Xdata)
     rearrange_ydata(night_cfg, night_val)
 
-    
     if twilight_cfg_file is not None:
         twilight_cfg = read_nn_config(twilight_cfg_file)
         Xdata = reorganize_data(twilight_cfg, scene)
