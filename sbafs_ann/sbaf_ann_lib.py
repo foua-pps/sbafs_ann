@@ -135,7 +135,7 @@ def set_up_nn_file_names(cfg, nn_dir):
         "yscale": "{:s}/ytrain_scale_{:s}.txt".format(nn_dir, nn_pattern),
         "t_loss_file": "{:s}/{:s}_tloss.txt".format(nn_dir, nn_pattern),
         "v_loss_file": "{:s}/{:s}_vloss.txt".format(nn_dir, nn_pattern),
-        "nn_cfg_file": "{:s}/{:s}.cfg".format(nn_dir, nn_pattern),
+        "nn_cfg_file": "{:s}/{:s}.yaml".format(nn_dir, nn_pattern),
         "channel_list": cfg.channel_list,
         "channel_list_mband": mband_list,
         "channel_list_mband_out": mband_list_out,
