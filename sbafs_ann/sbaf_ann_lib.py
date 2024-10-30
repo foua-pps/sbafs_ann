@@ -91,7 +91,27 @@ def get_data_to_use(cfg, viirs, n19):
     return use
 
 
-def create_training_data(cfg, viirs, n19):
+def thin_training_data(Xdata, Ydata):
+    index = np.arange(Xdata.shape[0])
+    selected = np.zeros(index.shape).astype(bool)
+    nbins = 10
+    for ind in range(Xdata.shape[1]):
+        var = Xdata[:, ind]
+        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
+        for bin_i in range(nbins-1):
+            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]),
+                                 ~selected)
+            print(np.sum(use))
+            try:
+                selection_i = np.random.choice(index[use], size=10000, replace=False)
+            except:
+                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
+                selection_i = index[use]
+            selected[selection_i] = True
+    return Xdata[selected, :], Ydata[selected, :]        
+                        
+                        
+def create_training_data(cfg, viirs, n19, thin=True):
     get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
     use = get_data_to_use(cfg, viirs, n19)
@@ -107,6 +127,9 @@ def create_training_data(cfg, viirs, n19):
             if channel in n19.channels:
                 Ydata[:, ind] -= n19.channels["ch_tb11"][use]
     n19.mask = ~use
+    print(Xdata.shape)
+    if thin:
+        Xdata, Ydata = thin_training_data(Xdata, Ydata)
     print(Xdata.shape)
     return (Xdata, Ydata)
 
@@ -201,7 +224,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
     n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
     # n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
-    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
+    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=False)
     ytest = apply_network(
         nn_cfg,
         Xtest)
@@ -223,7 +246,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     # Make same plots:
     title_end = ', SATZ < %d, SUNZ %d - %d, TD = %d sec' % (
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
-    fig_end = nn_pattern
+    fig_end = nn_cfg["nn_pattern"]
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-VX",
