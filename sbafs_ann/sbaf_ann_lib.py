@@ -127,6 +127,7 @@ def set_up_nn_file_names(cfg, nn_dir):
     mband_list = [PPS_MBAND[channel] for channel in cfg.channel_list]
     mband_list_out = [PPS_MBAND[channel] for channel in cfg.channel_list if channel in NOAA19_CHANNELS]
     nn_cfg = {
+        "nn_pattern": nn_pattern,
         "coeff_file": "{:s}/{:s}.keras".format(nn_dir, nn_pattern),
         "xmean": "{:s}/Xtrain_mean_{:s}.txt".format(nn_dir, nn_pattern),
         "xscale": "{:s}/Xtrain_scale_{:s}.txt".format(nn_dir, nn_pattern),
@@ -222,13 +223,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     # Make same plots:
     title_end = ', SATZ < %d, SUNZ %d - %d, TD = %d sec' % (
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
-    fig_end = 'ch{:d}_satz-{:d}_sunz_{:d}-{:d}_td-{:d}sec'.format(
-        len(
-            cfg.channel_list),
-        cfg.accept_satz_max,
-        cfg.accept_sunz_min,
-        cfg.accept_sunz_max,
-        cfg.accept_time_diff)
+    fig_end = nn_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-VX",
