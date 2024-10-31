@@ -95,6 +95,8 @@ def thin_training_data(Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
+    np.random.seed(1)
+    N_obs_to_use = Xdata.shape[1] * 100000
     for ind in range(Xdata.shape[1]):
         var = Xdata[:, ind]
         bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
@@ -108,6 +110,9 @@ def thin_training_data(Xdata, Ydata):
                 print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
                 selection_i = index[use]
             selected[selection_i] = True
+    use = ~selected
+    selection_i = np.random.choice(index[use], size= N_obs_to_use - np.sum(selected), replace=False)
+    selected[selection_i] = True
     return Xdata[selected, :], Ydata[selected, :]        
                         
                         
@@ -244,17 +249,24 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
         vgac2_obj_all.mask = n19_obj_all.mask
 
     # Make same plots:
-    title_end = ', SATZ < %d, SUNZ %d - %d, TD = %d sec' % (
+    fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
+                                                                cfg.accept_sunz_min,
+                                                                cfg.accept_sunz_max,
+                                                                cfg.accept_time_diff)
+    title_end =  " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
-    fig_end = nn_cfg["nn_pattern"]
+    fig_end = nn_cfg["nn_pattern"] + fig_end
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
 
+    fig_end = fig_end
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
-    
+
+
     if len(vgac_files) > 1:
+        sbaf_version = vgac_files[0].split("/")[-2]
         n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
-        do_sbaf_plots(cfg, title_end, fig_end, "SBAF-VX",
+        do_sbaf_plots(cfg, title_end, fig_end, "SBAF-{:s}".format(sbaf_version),
                       vgac_obj_all, n19_obj_all)
 
 
