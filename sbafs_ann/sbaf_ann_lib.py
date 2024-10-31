@@ -255,11 +255,11 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
                                                                 cfg.accept_time_diff)
     title_end =  " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
-    fig_end = nn_cfg["nn_pattern"] + fig_end
+    fig_end = nn_cfg["nn_pattern"] + fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
 
-    fig_end = fig_end
+    fig_end = fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
 
 
