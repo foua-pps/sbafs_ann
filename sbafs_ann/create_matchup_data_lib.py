@@ -126,7 +126,7 @@ def getChannel(sati, chn, ang_masked):
                 ret = sati[imageN][0, :, :]
                 #: only for visable channels
                 if 'ch_r' in sati[imageN].id_tag:
-                    if sati[imageN].sun_zenith_angle_correction_applied == 'False':
+                    if sati[imageN].sun_zenith_angle_correction_applied == 'False' and sati[imageN].units != "K" :
                         #                         from level1c4pps import apply_sunz_correction
                         print("Making sunzenith angle correction for channel {:s}".format(chn))
                         scaler = get_sunz_correction(sati)
