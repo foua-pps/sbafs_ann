@@ -96,21 +96,34 @@ def thin_training_data(Xdata, Ydata):
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
     np.random.seed(1)
-    N_obs_to_use = Xdata.shape[1] * 100000
+    N_obs_to_use = (Xdata.shape[1] + Ydata.shape[1]) * 100000
     for ind in range(Xdata.shape[1]):
         var = Xdata[:, ind]
         bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
         for bin_i in range(nbins-1):
             use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]),
                                  ~selected)
-            print(np.sum(use))
             try:
                 selection_i = np.random.choice(index[use], size=10000, replace=False)
             except:
                 print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
                 selection_i = index[use]
             selected[selection_i] = True
+    for ind in range(Ydata.shape[1]):
+        var = Ydata[:, ind]
+        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
+        for bin_i in range(nbins-1):
+            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]),
+                                 ~selected)
+            try:
+                selection_i = np.random.choice(index[use], size=10000, replace=False)
+            except:
+                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
+                selection_i = index[use]
+            selected[selection_i] = True
+
     use = ~selected
+    print(np.sum(selected))
     selection_i = np.random.choice(index[use], size= N_obs_to_use - np.sum(selected), replace=False)
     selected[selection_i] = True
     return Xdata[selected, :], Ydata[selected, :]        
