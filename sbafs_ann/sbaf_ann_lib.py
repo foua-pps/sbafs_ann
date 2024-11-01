@@ -24,6 +24,7 @@ import netCDF4
 from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
+from sbafs_ann import __version__
 import datetime
 import os
 
@@ -96,7 +97,7 @@ def thin_training_data(Xdata, Ydata):
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
     np.random.seed(1)
-    N_obs_to_use = (Xdata.shape[1] + Ydata.shape[1]) * 100000
+    N_obs_to_use = (Xdata.shape[1] + 1) * 100000
     for ind in range(Xdata.shape[1]):
         var = Xdata[:, ind]
         bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
@@ -180,7 +181,8 @@ def set_up_nn_file_names(cfg, nn_dir):
         "channel_list": cfg.channel_list,
         "channel_list_mband": mband_list,
         "channel_list_mband_out": mband_list_out,
-        "n_truths": len(mband_list_out)
+        "n_truths": len(mband_list_out),
+        "sbaf_ann-version": __version__
     }
     for cfg_name in ["accept_satz_max",
                      "accept_sunz_max",
