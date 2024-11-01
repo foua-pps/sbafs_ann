@@ -92,17 +92,24 @@ def get_data_to_use(cfg, viirs, n19):
     return use
 
 
-def thin_training_data(Xdata, Ydata):
+def thin_training_data(cfg, Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
     np.random.seed(1)
-    N_obs_to_use = (Xdata.shape[1] + 1) * 100000
-    for ind in range(Xdata.shape[1]):
-        var = Xdata[:, ind]
-        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
+    N_obs_to_use = (Xdata.shape[1]) * 100000
+    ind_only_x = list(range(Ydata.shape[1], Xdata.shape[1]))
+    for ind in range(Ydata.shape[1]):
+        if "37" in cfg.channel_list[ind]:
+            ind_only_x += [ind]
+            continue
+        vary = Ydata[:, ind]
+        varx = Xdata[:, ind]
+        minv = min(varx) + min(vary)
+        maxv = max(varx) + max(vary)
+        bins = np.linspace(minv, maxv + 0.001, endpoint=True, num = nbins)
         for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]),
+            use = np.logical_and(np.logical_and(vary >= bins[bin_i] - varx, vary < bins[bin_i+1]) - varx,
                                  ~selected)
             try:
                 selection_i = np.random.choice(index[use], size=10000, replace=False)
@@ -110,12 +117,12 @@ def thin_training_data(Xdata, Ydata):
                 print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
                 selection_i = index[use]
             selected[selection_i] = True
-    for ind in range(Ydata.shape[1]):
-        var = Ydata[:, ind]
+
+    for ind in ind_only_x:
+        var = Xdata[:, ind]
         bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
         for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]),
-                                 ~selected)
+
             try:
                 selection_i = np.random.choice(index[use], size=10000, replace=False)
             except:
@@ -148,7 +155,7 @@ def create_training_data(cfg, viirs, n19, thin=True):
     n19.mask = ~use
     print(Xdata.shape)
     if thin:
-        Xdata, Ydata = thin_training_data(Xdata, Ydata)
+        Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata)
     print(Xdata.shape)
     return (Xdata, Ydata)
 
