@@ -122,7 +122,7 @@ def thin_training_data(cfg, Xdata, Ydata):
         var = Xdata[:, ind]
         bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
         for bin_i in range(nbins-1):
-
+            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
             try:
                 selection_i = np.random.choice(index[use], size=10000, replace=False)
             except:
