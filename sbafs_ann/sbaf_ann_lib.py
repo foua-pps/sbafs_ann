@@ -39,17 +39,18 @@ PPS_MBAND = {"ch_r06": "M05",
              "ch_tb12": "M16"}
 NOAA19_CHANNELS = ["ch_r06", "ch_r09", "ch_tb11", "ch_tb12", "ch_tb37"]
 
-
-def get_cold_37_from_viirs(viirs, n19):
+def get_missing_37_from_viirs(viirs, n19):
     """Handle missing values in n19 data by copying from viirs."""
     update = np.logical_and(
         n19.channels["ch_tb37"].mask, ~viirs.channels["ch_tb37"].mask)
-    update = np.logical_and(update, n19.channels["ch_tb37"] < 220)
-    update2 = n19.channels["ch_tb37"] < 220
-    # Use VIIRS 11-3.7 for cold for missing or cold AVHRR 3.7 temperature
-    print(np.max(n19.channels["ch_tb11"][update2]- n19.channels["ch_tb37"][update2]))
     n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
-    print(np.max(n19.channels["ch_tb11"][update]- n19.channels["ch_tb37"][update]))
+    n19.channels["ch_tb37"].mask[update] = False
+    
+def get_cold_37_from_viirs(viirs, n19):
+    """Handle cold values in n19 data by copying from viirs."""
+    update = n19.channels["ch_tb37"] < 220
+    # Use VIIRS 11-3.7 for cold for missing or cold AVHRR 3.7 temperature
+    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
     n19.channels["ch_tb37"].mask[update] = False
 
 
@@ -162,6 +163,7 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
                         
                         
 def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
+    get_missing_37_from_viirs(viirs, n19
     if update_37:
         get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
