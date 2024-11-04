@@ -45,7 +45,11 @@ def get_cold_37_from_viirs(viirs, n19):
     update = np.logical_and(
         n19.channels["ch_tb37"].mask, ~viirs.channels["ch_tb37"].mask)
     update = np.logical_and(update, n19.channels["ch_tb37"] < 220)
-    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update]
+    update2 = n19.channels["ch_tb37"] < 220
+    # Use VIIRS 11-3.7 for cold for missing or cold AVHRR 3.7 temperature
+    print(np.max(n19.channels["ch_tb11"][update2]- n19.channels["ch_tb37"][update2]))
+    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
+    print(np.max(n19.channels["ch_tb11"][update]- n19.channels["ch_tb37"][update]))
     n19.channels["ch_tb37"].mask[update] = False
 
 
@@ -92,7 +96,7 @@ def get_data_to_use(cfg, viirs, n19):
     use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
     return use
 
-def thin_training_data_v2(cfg, Xdata, Ydata):
+def thin_training_data(cfg, Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
@@ -115,7 +119,7 @@ def thin_training_data_v2(cfg, Xdata, Ydata):
     return Xdata[selected, :], Ydata[selected, :]
 
 
-def thin_training_data(cfg, Xdata, Ydata):
+def thin_training_data_2d(cfg, Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
@@ -157,8 +161,9 @@ def thin_training_data(cfg, Xdata, Ydata):
     return Xdata[selected, :], Ydata[selected, :]        
                         
                         
-def create_training_data(cfg, viirs, n19, thin=True):
-    get_cold_37_from_viirs(viirs, n19)
+def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
+    if update_37:
+        get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
     use = get_data_to_use(cfg, viirs, n19)
     Xdata = np.empty((sum(use), len(cfg.channel_list)))
@@ -243,9 +248,9 @@ def train_network_for_files(cfg, files_train, files_valid):
     from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
-    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all)
+    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=True)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_valid)
-    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all)
+    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=True)
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 
@@ -271,7 +276,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
     n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
 
-    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=False)
+    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     ytest = apply_network(
         nn_cfg,
         Xtest)
