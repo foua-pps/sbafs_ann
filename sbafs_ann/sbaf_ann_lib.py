@@ -44,6 +44,7 @@ def get_cold_37_from_viirs(viirs, n19):
     """Handle missing values in n19 data by copying from viirs."""
     update = np.logical_and(
         n19.channels["ch_tb37"].mask, ~viirs.channels["ch_tb37"].mask)
+    update = np.logical_and(update, n19.channels["ch_tb37"] < 220)
     n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update]
     n19.channels["ch_tb37"].mask[update] = False
 
@@ -91,6 +92,28 @@ def get_data_to_use(cfg, viirs, n19):
     use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
     return use
 
+def thin_training_data_v2(cfg, Xdata, Ydata):
+    index = np.arange(Xdata.shape[0])
+    selected = np.zeros(index.shape).astype(bool)
+    nbins = 10
+    np.random.seed(1)
+    N_obs_to_use = (Xdata.shape[1]) * 100000
+    for ind in range(Xdata.shape[1]):
+        var = Xdata[:, ind]
+        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
+        for bin_i in range(nbins-1):
+            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
+            try:
+                selection_i = np.random.choice(index[use], size=10000, replace=False)
+            except:
+                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
+                selection_i = index[use]
+            selected[selection_i] = True
+    use = ~selected
+    selection_i = np.random.choice(index[use], size= N_obs_to_use - np.sum(selected), replace=False)
+    selected[selection_i] = True
+    return Xdata[selected, :], Ydata[selected, :]
+
 
 def thin_training_data(cfg, Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
@@ -100,9 +123,6 @@ def thin_training_data(cfg, Xdata, Ydata):
     N_obs_to_use = (Xdata.shape[1]) * 100000
     ind_only_x = list(range(Ydata.shape[1], Xdata.shape[1]))
     for ind in range(Ydata.shape[1]):
-        if "37" in cfg.channel_list[ind]:
-            ind_only_x += [ind]
-            continue
         vary = Ydata[:, ind]
         varx = Xdata[:, ind]
         minv = min(varx) + min(vary)
