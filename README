@@ -9,7 +9,7 @@ scene = convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cf
 It is possible to create matchup data in a separate step:
 ----------------------------------
 create_matchup_data.py --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_dir ~/SBAF_NN/DATA/TRAIN/ -o ~/SBAF_NN/DATA/TRAIN/
-
+create_matchup_data.py --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_dir ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/DATA/VALID/
 
 The two networks trained for version 1
 ----------------------------------
@@ -27,7 +27,8 @@ To make images for these:
 -------------------------
 apply_sbafs.py --nn_cfg_file ~/SBAF_NN/ch4_satz_max_25_SUNZ_90_180_tdiff_300_sec_20241029.cfg --viirs_dir ~/SBAF_NN/DATA/VIIRS/ --n19_test ~/SBAF_NN/DATA/TEST/ --vgac_dir ~/VGAC_PPS_VG_SBAF/
 
-
 Important stuff:
 -------------------------
 Note for 3.7 VIIRS data is used when there is nodata in AHVRR.
+Note for 3.7 AVHRR colder than 220K the 11-3.7 of VIIRS is used for training (20241104)
+Two types of thinning have been inmplemented 1D (viirs only) and 2D
