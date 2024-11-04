@@ -163,7 +163,7 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
                         
                         
 def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
-    get_missing_37_from_viirs(viirs, n19
+    get_missing_37_from_viirs(viirs, n19)
     if update_37:
         get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
