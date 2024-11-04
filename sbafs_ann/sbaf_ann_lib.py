@@ -180,7 +180,7 @@ def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
     n19.mask = ~use
     print(Xdata.shape)
     if thin:
-        Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata)
+        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata)
     print(Xdata.shape)
     return (Xdata, Ydata)
 
