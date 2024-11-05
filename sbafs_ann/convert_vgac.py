@@ -63,8 +63,8 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
         twilight_val = apply_network(twilight_cfg, Xdata)
         rearrange_ydata(twilight_cfg, twilight_val)
 
-    night = scene["sunzenith"].values >= 89
-    twilight = np.logical_and(scene["sunzenith"].values < 89, scene["sunzenith"].values > 80)
+    night = scene["sunzenith"].values >= 88
+    twilight = np.logical_and(scene["sunzenith"].values < 95, scene["sunzenith"].values > 80)
 
     ch_size = scene["M15"].values.shape
     for ind, channel in enumerate(day_cfg["channel_list_mband_out"]):
@@ -74,14 +74,18 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
         scene[channel + "_err"].attrs["add_offset"] = 0
         scene[channel + "_err"].values = get_error_estimate(day_val, ind).reshape(ch_size)
 
+    if twilight_cfg_file is not None:
+        # Do twilight before night and so that twilight overlap with night
+        # To avoid any r06, r09 between 95 and 88 using the day scheme
+        for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
+            scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(ch_size)[twilight]
+            scene[channel + "_err"].values[twilight] = get_error_estimate(twilight_val, ind).reshape(ch_size)[twilight]
+            
     for ind, channel in enumerate(night_cfg["channel_list_mband_out"]):
         scene[channel].values[night] = night_val[:, ind, 1].reshape(ch_size)[night] 
         scene[channel + "_err"].values[night] = get_error_estimate(night_val, ind).reshape(ch_size)[night]
         
-    if twilight_cfg_file is not None:       
-        for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
-            scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(ch_size)[twilight]
-            scene[channel + "_err"].values[twilight] = get_error_estimate(twilight_val, ind).reshape(ch_size)[twilight]
+
     return scene
 
 
