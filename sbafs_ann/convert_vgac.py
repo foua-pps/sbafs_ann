@@ -63,7 +63,7 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
         twilight_val = apply_network(twilight_cfg, Xdata)
         rearrange_ydata(twilight_cfg, twilight_val)
 
-    night = scene["sunzenith"].values >= 88
+    night = scene["sunzenith"].values >= 89
     twilight = np.logical_and(scene["sunzenith"].values < 95, scene["sunzenith"].values > 80)
 
     ch_size = scene["M15"].values.shape
