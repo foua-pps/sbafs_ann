@@ -332,6 +332,51 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
 
 
+def apply_network_and_plot_from_matched(cfg, match_files):
+
+    from sbafs_ann.plots_lib import do_sbaf_plots
+    from sbafs_ann.train_sbaf_nn_lib import apply_network
+    from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
+
+    nn_cfg = read_nn_config(cfg.nn_cfg_file)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+
+
+    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, match_files)
+    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
+    ytest = apply_network(nn_cfg, Xtest)
+
+    vgac2_obj_all = Lvl1cObj(cfg)
+    for ind, channel in enumerate(cfg.channel_list):
+        if channel in n19_obj_all.channels and n19_obj_all.channels[channel] is not None:
+            vgac2_obj_all.channels[channel] = 0 * viirs_obj_all.channels[channel]
+            try:
+                vgac2_obj_all.channels[channel][~n19_obj_all.mask] = ytest[:, ind, 1].copy()
+            except BaseException:
+                import pdb
+                pdb.set_trace()
+            vgac2_obj_all.channels[channel].mask = n19_obj_all.mask
+            if channel in ["ch_tb12", "ch_tb37"]:
+                vgac2_obj_all.channels[channel][~n19_obj_all.mask] += ytest[:, cfg.channel_list.index("ch_tb11"), 1]
+        vgac2_obj_all.mask = n19_obj_all.mask
+
+    # Make same plots:
+    fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
+                                                                cfg.accept_sunz_min,
+                                                                cfg.accept_sunz_max,
+                                                                cfg.accept_time_diff)
+    title_end =  " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
+        cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
+    fig_end = nn_cfg["nn_pattern"] + fig_pattern
+    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
+                  vgac2_obj_all, n19_obj_all)
+
+    fig_end = fig_pattern
+    do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
+
+
+
+
 
 if __name__ == '__main__':
     pass
