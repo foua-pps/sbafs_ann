@@ -24,6 +24,7 @@ from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 import datetime
+import resource
 import os
 import h5py
 COMPRESS_LVL = 6
@@ -397,7 +398,8 @@ def get_merged_matchups_for_files(cfg, files):
     n19_obj_all = Lvl1cObj(cfg)
     viirs_obj_all = Lvl1cObj(cfg)
     for filename in files:
-        print(filename)
+        print("Memory usage {:3.1f}, reading {:s}".format(
+            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024), filename))
         n19_obj, viirs_obj = read_matchupdata(cfg, filename)
         viirs_obj_all += viirs_obj
         n19_obj_all += n19_obj

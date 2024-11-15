@@ -26,6 +26,7 @@ from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 from sbafs_ann import __version__
 import datetime
+import resource
 import os
 
 
@@ -258,8 +259,13 @@ def train_network_for_files(cfg, files_train, files_valid):
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
     Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    n19_obj_all = None
+    viirs_obj_all = None
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_valid)
     Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 
