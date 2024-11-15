@@ -163,9 +163,9 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
 def thin_training_data(cfg, Xdata, Ydata, thin="2D"):
     print(Xdata.shape)
     if thin == "2D":
-        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata, thin)
+        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata)
     elif thin == "1D":
-        Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata, thin)
+        Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata)
     print(Xdata.shape)
     return Xdata, Ydata
 
@@ -219,6 +219,9 @@ def set_up_nn_file_names(cfg, nn_dir):
         "channel_list": cfg.channel_list,
         "channel_list_mband": mband_list,
         "channel_list_mband_out": mband_list_out,
+        "n_hidden_layer_1": cfg.n_hidden_layer_1,
+        "n_hidden_layer_2": cfg.n_hidden_layer_2,
+        "n_hidden_layer_3": cfg.n_hidden_layer_3,
         "n_truths": len(mband_list_out),
         "sbaf_ann-version": __version__
     }

@@ -81,9 +81,9 @@ def apply_network(nn_cfg, Xdata):
     Ok_rows = [~np.isnan(Xdata[ind, :]).any() for ind in range(Xdata.shape[0])]
     model = Sequential()
     model.add(keras.Input(shape=(Xdata.shape[1],)))
-    model.add(Dense(N_HIDDEN_LAYER_1, activation=ACTIVATION))
-    model.add(Dense(N_HIDDEN_LAYER_2, activation=ACTIVATION))
-    model.add(Dense(N_HIDDEN_LAYER_3, activation=ACTIVATION))
+    model.add(Dense(nn_cfg["n_hidden_layer_1"], activation=ACTIVATION))
+    model.add(Dense(nn_cfg["n_hidden_layer_2"], activation=ACTIVATION))
+    model.add(Dense(nn_cfg["n_hidden_layer_3"], activation=ACTIVATION))
     model.add(Dense(n_truths * len(PERCENTILE), activation='linear'))
     model.load_weights(filepath=nn_cfg["coeff_file"])
     X_in = (Xdata - Xtrain_mean) * Xtrain_scale_inv
@@ -146,6 +146,9 @@ def train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid):
         verbose=0,
         save_best_only=True,
         mode='min')
+    
+    # checkpointer3 = keras.callbacks.LambdaCallback(on_epoch_end=lambda batch, logs: print(model.layers[3].get_weights()))
+
     nnet = model.fit(
         Xtrain,
         ytrain,
@@ -156,7 +159,8 @@ def train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid):
             yvalid),
         callbacks=[
             checkpointer,
-            checkpointer2],
+            checkpointer2,
+        ],
         shuffle=True,
         verbose=2)
 
