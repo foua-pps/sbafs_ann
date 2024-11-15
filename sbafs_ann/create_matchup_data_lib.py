@@ -439,6 +439,18 @@ def merge_matchup_data_for_files(cfg, n19_files, npp_files):
     return n19_obj_all, viirs_obj_all
 
 
+def get_data_to_use_cfg(cfg, n19, viirs):
+
+    use = viirs.data["abs_time_diff_s"] <= cfg.accept_time_diff
+    use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
+    use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
+    use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
+    use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
+    use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
+    use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
+    use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
+    return use
+
 def write_matchupdata(filename, n19_obj, viirs_obj):
 
     with h5py.File(filename, 'w') as f:
@@ -478,7 +490,15 @@ def read_matchupdata(cfg, filename):
                     n19_obj.channels[channel], mask=n19_obj.channels[channel] < 0)
         viirs_obj.data["abs_time_diff_s"] = match_fh["abs_time_diff_s"][...]
         viirs_obj.data["distance_between_pixels_m"] = match_fh["distance_between_pixels_m"][...]
-
+    use = get_data_to_use_cfg(cfg, n19_obj, viirs_obj)
+    for var in n19_obj.channels:
+        if n19_obj.channels[var] is not None:
+            n19_obj.channels[var] =  n19_obj.channels[var][use]
+    for var in viirs_obj.channels:
+        if viirs_obj.channels[var] is not None:
+            viirs_obj.channels[var] =  viirs_obj.channels[var][use]
+    for var in viirs_obj.data:
+        viirs_obj.channels[var] =  viirs_obj.data[var][use]
     return n19_obj, viirs_obj
 
 

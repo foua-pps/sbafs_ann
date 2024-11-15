@@ -24,6 +24,8 @@ import netCDF4
 from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
+from sbafs_ann.train_sbaf_nn_lib import train_network
+from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
 from sbafs_ann import __version__
 import datetime
 import resource
@@ -80,7 +82,6 @@ def warn_get_data_to_use_cfg(cfg, viirs, n19):
 
 
 def get_data_to_use(cfg, viirs, n19):
-
     mask = np.logical_or(
         n19.channels["ch_tb11"].mask, viirs.channels["ch_tb11"].mask)
     for channel in cfg.channel_list:
@@ -254,8 +255,6 @@ def read_nn_config(nn_cfg_file):
 
 
 def train_network_for_files(cfg, files_train, files_valid):
-    from sbafs_ann.train_sbaf_nn_lib import train_network
-    from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
     Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
