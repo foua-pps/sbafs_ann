@@ -498,7 +498,7 @@ def read_matchupdata(cfg, filename):
         if viirs_obj.channels[var] is not None:
             viirs_obj.channels[var] =  viirs_obj.channels[var][use]
     for var in viirs_obj.data:
-        viirs_obj.channels[var] =  viirs_obj.data[var][use]
+        viirs_obj.data[var] =  viirs_obj.data[var][use]
     return n19_obj, viirs_obj
 
 
