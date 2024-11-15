@@ -44,9 +44,6 @@ except (ModuleNotFoundError, ImportError) as e:
 
 
 PERCENTILE = [16, 50, 84]
-N_HIDDEN_LAYER_1 = 10
-N_HIDDEN_LAYER_2 = 10
-N_HIDDEN_LAYER_3 = 5
 LEARNING_RATE = 0.02
 ACTIVATION = 'tanh'
 PATIENCE = 30
@@ -83,7 +80,8 @@ def apply_network(nn_cfg, Xdata):
     model.add(keras.Input(shape=(Xdata.shape[1],)))
     model.add(Dense(nn_cfg["n_hidden_layer_1"], activation=ACTIVATION))
     model.add(Dense(nn_cfg["n_hidden_layer_2"], activation=ACTIVATION))
-    model.add(Dense(nn_cfg["n_hidden_layer_3"], activation=ACTIVATION))
+    if nn_cfg["n_hidden_layer_3"] > 0:
+        model.add(Dense(nn_cfg["n_hidden_layer_3"], activation=ACTIVATION))
     model.add(Dense(n_truths * len(PERCENTILE), activation='linear'))
     model.load_weights(filepath=nn_cfg["coeff_file"])
     X_in = (Xdata - Xtrain_mean) * Xtrain_scale_inv
@@ -125,15 +123,15 @@ def train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid):
     sgd = SGD(learning_rate=LEARNING_RATE, momentum=MOMENTUM, nesterov=False)
     model = Sequential()
 
-    model.add(Dense(N_HIDDEN_LAYER_1, kernel_initializer=INIT_DIST,
+    model.add(Dense(nn_cfg["n_hidden_layer_1"], kernel_initializer=INIT_DIST,
                     activation=ACTIVATION, input_dim=Xtrain.shape[1]))
-    model.add(Dense(N_HIDDEN_LAYER_2,
+    model.add(Dense(nn_cfg["n_hidden_layer_2"],
               kernel_initializer=INIT_DIST, activation=ACTIVATION))
-    if N_HIDDEN_LAYER_3 > 0:
-        model.add(Dense(N_HIDDEN_LAYER_3,
+    if nn_cfg["n_hidden_layer_3"] > 0:
+        model.add(Dense(nn_cfg["n_hidden_layer_3"],
                   kernel_initializer=INIT_DIST, activation=ACTIVATION))
-        model.add(Dense(n_truths * len(PERCENTILE),
-                  kernel_initializer=INIT_DIST, activation='linear'))
+    model.add(Dense(n_truths * len(PERCENTILE),
+                    kernel_initializer=INIT_DIST, activation='linear'))
     model.compile(loss=lambda y, f: tilted_loss(n_truths,
                                                 0.01 * np.array(PERCENTILE),
                                                 # , optimizer='adagrad')

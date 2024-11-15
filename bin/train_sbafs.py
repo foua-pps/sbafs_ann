@@ -56,13 +56,13 @@ if __name__ == "__main__":
                         required=False, default='.',
                         help="Output directory where to store the train network files")
     parser.add_argument('--n_hidden_layer_1', type=int, nargs='?',
-                        required=False, default=10,
+                        required=False, default=15,
                         help="Number of nodes in first hidden layer")
     parser.add_argument('--n_hidden_layer_2', type=int, nargs='?',
-                        required=False, default=10,
+                        required=False, default=15,
                         help="Number of nodes in first hidden layer")
     parser.add_argument('--n_hidden_layer_3', type=int, nargs='?',
-                        required=False, default=5,
+                        required=False, default=0,
                         help="Number of nodes in first hidden layer")
         
     options = parser.parse_args()
