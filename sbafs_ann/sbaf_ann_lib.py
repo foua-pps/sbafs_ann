@@ -97,7 +97,7 @@ def get_data_to_use(cfg, viirs, n19):
     use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
     return use
 
-def thin_training_data(cfg, Xdata, Ydata):
+def thin_training_data_1d(cfg, Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
     selected = np.zeros(index.shape).astype(bool)
     nbins = 10
@@ -142,7 +142,6 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
                 print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
                 selection_i = index[use]
             selected[selection_i] = True
-
     for ind in ind_only_x:
         var = Xdata[:, ind]
         bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
@@ -154,14 +153,22 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
                 print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
                 selection_i = index[use]
             selected[selection_i] = True
-
     use = ~selected
     print(np.sum(selected))
     selection_i = np.random.choice(index[use], size= N_obs_to_use - np.sum(selected), replace=False)
     selected[selection_i] = True
     return Xdata[selected, :], Ydata[selected, :]        
-                        
-                        
+
+
+def thin_training_data(cfg, Xdata, Ydata, thin="2D"):
+    print(Xdata.shape)
+    if thin == "2D":
+        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata, thin)
+    elif thin == "1D":
+        Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata, thin)
+    print(Xdata.shape)
+    return Xdata, Ydata
+
 def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
     get_missing_37_from_viirs(viirs, n19)
     if update_37:
@@ -180,10 +187,7 @@ def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
             if channel in n19.channels:
                 Ydata[:, ind] -= n19.channels["ch_tb11"][use]
     n19.mask = ~use
-    print(Xdata.shape)
-    if thin:
-        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata)
-    print(Xdata.shape)
+    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, thin)    
     return (Xdata, Ydata)
 
 
@@ -250,9 +254,9 @@ def train_network_for_files(cfg, files_train, files_valid):
     from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
-    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=True)
+    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_valid)
-    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=True)
+    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 
