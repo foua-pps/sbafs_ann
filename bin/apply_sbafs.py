@@ -60,12 +60,12 @@ if __name__ == "__main__":
                         help="Allowd max distance (m)")
 
     options = parser.parse_args()
-    viirs_files = sorted(glob.glob(
-        "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir)))
-
-    if options.n19_test is not None and options.viirs_dir is not None:
+    if options.n19_test is not None:
         n19_files = glob.glob(
             "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_test))
+    if options.n19_test is not None and options.viirs_dir is not None:
+        viirs_files = sorted(glob.glob(
+            "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir)))
         apply_network_and_plot(options, n19_files, viirs_files, vgac_files)
     if options.vgac_dir is not None and options.n19_test is not None:
         vgac_files = glob.glob(
