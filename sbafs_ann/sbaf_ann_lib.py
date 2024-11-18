@@ -30,6 +30,9 @@ from sbafs_ann import __version__
 import datetime
 import resource
 import os
+from sbafs_ann.plots_lib import do_sbaf_plots
+from sbafs_ann.train_sbaf_nn_lib import apply_network
+from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
 
 
 PPS_MBAND = {"ch_r06": "M05",
@@ -278,12 +281,31 @@ def update_cfg_with_nn_cfg(cfg, nn_cfg):
         if getattr(cfg, cfg_name) is None:
             setattr(cfg, cfg_name, nn_cfg[cfg_name])
 
+def get_title_end(cfg):
+    title_end = " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
+        cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
+    fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
+                                                                cfg.accept_sunz_min,
+                                                                cfg.accept_sunz_max,
+                                                                cfg.accept_time_diff)
+    return  title_end, fig_pattern
 
-def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
 
-    from sbafs_ann.plots_lib import do_sbaf_plots
-    from sbafs_ann.train_sbaf_nn_lib import apply_network
-    from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
+def apply_network_and_plot_from_l1c(cfg, n19_files_test, vgac_files):
+
+    nn_cfg = read_nn_config(cfg.nn_cfg_file)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+
+    # Make same plots:
+    title_end, fig_pattern =  get_title_end(cfg)
+
+    sbaf_version = vgac_files[0].split("/")[-2]
+    n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
+    do_sbaf_plots(cfg, title_end, fig_pattern, "SBAF-{:s}".format(sbaf_version),
+                  vgac_obj_all, n19_obj_all)
+        
+def apply_network_and_plot(cfg, n19_files_test, npp_files):
+
 
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
@@ -310,12 +332,8 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
         vgac2_obj_all.mask = n19_obj_all.mask
 
     # Make same plots:
-    fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
-                                                                cfg.accept_sunz_min,
-                                                                cfg.accept_sunz_max,
-                                                                cfg.accept_time_diff)
-    title_end =  " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
-        cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
+
+    title_end, fig_pattern =  get_title_end(cfg)
     fig_end = nn_cfg["nn_pattern"] + fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
@@ -324,19 +342,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files, vgac_files):
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
 
 
-    if len(vgac_files) > 1:
-        sbaf_version = vgac_files[0].split("/")[-2]
-        n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
-        do_sbaf_plots(cfg, title_end, fig_end, "SBAF-{:s}".format(sbaf_version),
-                      vgac_obj_all, n19_obj_all)
-
-
-
 def apply_network_and_plot_from_matched(cfg, match_files):
-
-    from sbafs_ann.plots_lib import do_sbaf_plots
-    from sbafs_ann.train_sbaf_nn_lib import apply_network
-    from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
 
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
@@ -361,12 +367,7 @@ def apply_network_and_plot_from_matched(cfg, match_files):
         vgac2_obj_all.mask = n19_obj_all.mask
 
     # Make same plots:
-    fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
-                                                                cfg.accept_sunz_min,
-                                                                cfg.accept_sunz_max,
-                                                                cfg.accept_time_diff)
-    title_end =  " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
-        cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
+    title_end, fig_pattern =  get_title_end(cfg)
     fig_end = nn_cfg["nn_pattern"] + fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)

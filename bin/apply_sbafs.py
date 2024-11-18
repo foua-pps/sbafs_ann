@@ -19,7 +19,7 @@
 
 import argparse
 import glob
-from sbafs_ann.sbaf_ann_lib import apply_network_and_plot, apply_network_and_plot_from_matched
+from sbafs_ann.sbaf_ann_lib import apply_network_and_plot, apply_network_and_plot_from_matched, apply_network_and_plot_from_l1c
 
 if __name__ == "__main__":
     """ Apply network and make some plots."""
@@ -35,10 +35,10 @@ if __name__ == "__main__":
                         required=False, default=None,
                         help="Directory with N19 test files.")
     parser.add_argument('--viirs_dir', type=str, nargs='?',
-                        required=False, default='.',
+                        required=False, default=None,
                         help="Directory with VIIS files.")
     parser.add_argument('--vgac_dir', type=str, nargs='?',
-                        required=False, default='.',
+                        required=False, default=None,
                         help="Directory with SBAF correced level1c files.")
     parser.add_argument('--match_dir', type=str, nargs='?',
                         required=False, default=None,
@@ -62,12 +62,15 @@ if __name__ == "__main__":
     options = parser.parse_args()
     viirs_files = sorted(glob.glob(
         "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir)))
-    vgac_files = glob.glob(
-        "{:s}/S_NWC_avhrr_vgacsnpp_*T*.nc".format(options.vgac_dir))
-    if options.n19_test is not None:
+
+    if options.n19_test is not None and options.viirs_dir is not None:
         n19_files = glob.glob(
             "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_test))
         apply_network_and_plot(options, n19_files, viirs_files, vgac_files)
+    if options.vgac_dir is not None and options.n19_test is not None:
+        vgac_files = glob.glob(
+            "{:s}/S_NWC_avhrr_vgacsnpp_*T*.nc".format(options.vgac_dir))
+        apply_network_and_plot_from_l1c(options, n19_files, viirs_files, vgac_files)  
     if options.match_dir is not None:
         match_files = glob.glob(
             "{:s}/matchup*.h5".format(options.match_dir))
