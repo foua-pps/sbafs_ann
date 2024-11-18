@@ -60,8 +60,8 @@ if __name__ == "__main__":
                         help="Allowd max distance (m)")
 
     options = parser.parse_args()
-    viirs_files = glob.glob(
-        "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir))
+    viirs_files = sorted(glob.glob(
+        "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir)))
     vgac_files = glob.glob(
         "{:s}/S_NWC_avhrr_vgacsnpp_*T*.nc".format(options.vgac_dir))
     if options.n19_test is not None:

@@ -221,17 +221,17 @@ def read_data(fname, cfg, exclude=[]):
         satza_masked = np.zeros(
             my_sat['satzenith'][0, :, :].data.shape).astype(bool)
     else:
-        satza_masked = my_sat['satzenith'][0, :, :].data > cfg.accept_satz_max + 2
+        satza_masked = my_sat['satzenith'][0, :, :].data > cfg.accept_satz_max + 5
     if cfg.accept_sunz_max == 180:
         sunza_masked = np.zeros(
             my_sat['sunzenith'][0, :, :].data.shape).astype(bool)
     else:
-        sunza_masked = my_sat['sunzenith'][0, :, :].data > cfg.accept_sunz_max + 2
+        sunza_masked = my_sat['sunzenith'][0, :, :].data > cfg.accept_sunz_max + 5
     if cfg.accept_sunz_min == 0:
         pass
     else:
         sunza_masked = np.logical_or(
-            sunza_masked, my_sat['sunzenith'][0, :, :].data < cfg.accept_sunz_min - 2)
+            sunza_masked, my_sat['sunzenith'][0, :, :].data < cfg.accept_sunz_min - 5)
     my_obj.mask = satza_masked | sunza_masked
     my_obj.lat = my_sat['lat'][:]
     my_obj.lon = my_sat['lon'][:]
