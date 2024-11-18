@@ -3,7 +3,7 @@
 
 from setuptools import setup
 from setuptools import find_packages
-from sbafs_ann.trained_networks import trained_networks
+
 try:
     # HACK: https://github.com/pypa/setuptools_scm/issues/190#issuecomment-351181286
     # Stop setuptools_scm from including all repository files
@@ -36,7 +36,8 @@ setup(name=NAME,
       scripts=["bin/train_sbafs.py",
                "bin/create_matchup_data.py",
                "bin/apply_sbafs.py"],
-      data_files=[('share/sbafs_nns', trained_networks)],
+      package_data = {"sbafs_ann/data/": ["*.keras", '*.txt', '*.yaml']},
+      include_package_data = True,
       zip_safe=False,
       use_scm_version=True,
       python_requires='>=3.7',
