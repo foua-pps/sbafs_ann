@@ -66,11 +66,11 @@ if __name__ == "__main__":
     if options.n19_test is not None and options.viirs_dir is not None:
         viirs_files = sorted(glob.glob(
             "{:s}/S_NWC_viirs_npp_*T*.nc".format(options.viirs_dir)))
-        apply_network_and_plot(options, n19_files, viirs_files, vgac_files)
+        apply_network_and_plot(options, n19_files, viirs_files)
     if options.vgac_dir is not None and options.n19_test is not None:
         vgac_files = glob.glob(
             "{:s}/S_NWC_avhrr_vgacsnpp_*T*.nc".format(options.vgac_dir))
-        apply_network_and_plot_from_l1c(options, n19_files, viirs_files, vgac_files)  
+        apply_network_and_plot_from_l1c(options, n19_files, vgac_files)  
     if options.match_dir is not None:
         match_files = glob.glob(
             "{:s}/matchup*.h5".format(options.match_dir))
