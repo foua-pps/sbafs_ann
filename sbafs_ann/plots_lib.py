@@ -228,12 +228,12 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
                      mark_zero=True)
 
     #: Rearrange scaling and other things
-    tb_min_axis = -7
-    if np.min(n19_t11t37_all_flat)<-20:
-        
-        tb_min_axis = -50
     tb_max_axis = 7
+    tb_min_axis = -7
     tb_plot_ticks_int = [*range(tb_min_axis, tb_max_axis + 1, 2)]
+    if np.min(n19_t11t37_all_flat)<-20:
+        tb_min_axis = -50
+        tb_plot_ticks_int = [*range(tb_min_axis, tb_max_axis + 1, 5)]
     tb_plot_ticks_str = np.asarray(tb_plot_ticks_int).astype(str).tolist()
     tb_plot_ticks_loc = []
     histd2_bins = 400

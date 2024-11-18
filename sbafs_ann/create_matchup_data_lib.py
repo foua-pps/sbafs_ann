@@ -355,7 +355,11 @@ def do_matching(cfg, n19_obj, viirs_obj):
 def get_data_for_one_case(cfg, n19f, viirsf):
 
     n19_obj = read_data(n19f, cfg, exclude=["ch_r16"])
-    viirs_obj = read_data(viirsf, cfg)
+    try:
+        viirs_obj = read_data(viirsf, cfg)
+    except:
+        print("Could not read file viirsf!")
+        return  Lvl1cObj(cfg), Lvl1cObj(cfg)
     n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
     # xh = 15
     # cutColumns(n19_obj, list(
@@ -458,7 +462,7 @@ def get_data_to_use_cfg(cfg, n19, viirs):
 def write_matchupdata(filename, n19_obj, viirs_obj):
 
     with h5py.File(filename, 'w') as f:
-        for name in viirs_obj.channel_list + ["sunzenith", "satzenith"]:
+        for name in viirs_obj.channel_list:
             print(name)
             f.create_dataset("viirs_{:s}".format(name), data=viirs_obj.channels[name],
                              compression=COMPRESS_LVL)
@@ -497,12 +501,12 @@ def read_matchupdata(cfg, filename):
         for channel in cfg.channel_list + ["sunzenith", "satzenith"]:
             viirs_obj.channels[channel] = match_fh["viirs_{:s}".format(channel)][...]
             viirs_obj.channels[channel] = np.ma.masked_array(
-                viirs_obj.channels[channel], mask=viirs_obj.channels[channel] <-999999999999999)
+                viirs_obj.channels[channel], mask=viirs_obj.channels[channel] < 0)
             if channel in n19_var_list:
                 print(n19_var_list)
                 n19_obj.channels[channel] = match_fh["avhrr_{:s}".format(channel)][...]
                 n19_obj.channels[channel] = np.ma.masked_array(
-                    n19_obj.channels[channel], mask=n19_obj.channels[channel] <-9999999999999999)
+                    n19_obj.channels[channel], mask=n19_obj.channels[channel] < 0)
         viirs_obj.data["abs_time_diff_s"] = match_fh["abs_time_diff_s"][...]
         viirs_obj.data["distance_between_pixels_m"] = match_fh["distance_between_pixels_m"][...]
     cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj)
