@@ -355,11 +355,7 @@ def do_matching(cfg, n19_obj, viirs_obj):
 def get_data_for_one_case(cfg, n19f, viirsf):
 
     n19_obj = read_data(n19f, cfg, exclude=["ch_r16"])
-    try:
-        viirs_obj = read_data(viirsf, cfg)
-    except:
-        print("Could not read file viirsf!")
-        return  Lvl1cObj(cfg), Lvl1cObj(cfg)
+    viirs_obj = read_data(viirsf, cfg)
     n19_center_scanline = int(n19_obj.lat.shape[1] / 2)
     # xh = 15
     # cutColumns(n19_obj, list(
