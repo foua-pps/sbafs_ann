@@ -32,6 +32,7 @@ train_sbafs.py --accept_sunz_min  80 --accept_sunz_max 89 --accept_time_diff 120
 train_sbafs.py --accept_sunz_min 90 --accept_time_diff 120 --accept_satz_max 15 --train_dir ~/SBAF_NN/DATA/TRAIN/ --valid_dir ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_tb11 ch_tb12 ch_tb37
 train_sbafs.py --accept_sunz_min 90 --accept_time_diff 120 --accept_satz_max 15 --train_dir ~/SBAF_NN/DATA/TRAIN/ --valid_dir ~/SBAF_NN/DATA/VALID/ -o ~/SBAF_NN/ ch_tb11 ch_tb12 ch_tb37 ch_tb85
 
+Networks trained without 8.5 also checked in.
 
 
 To make images for these:
@@ -47,4 +48,5 @@ Two types of thinning have been inmplemented 1D (viirs only) and 2D (not used)
 Network one was trained without thinning using data from 2012 for both training and validation.
 Network two was trained with 1D thinning using data from 2013 for training and from 2012 for validation. Satz up to 25. The 3.7µm nodata replaced with value from VIIRS. 3 layer MLP. Time diff 300.
 Network three was trained with 1D thinning using data from 2013 and 2012 for training and  from 2013 for validation. Satz up to 15. The 3.7µm nodata colder than 220 replaced with value from VIIRS to get VIIRS 11-3.7µm also for AVHRR for this temperatures. 2 layer MPL. Time diff 120s.
+        
 
