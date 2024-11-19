@@ -144,7 +144,7 @@ def train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid):
         verbose=0,
         save_best_only=True,
         mode='min')
-    
+
     # checkpointer3 = keras.callbacks.LambdaCallback(on_epoch_end=lambda batch, logs: print(model.layers[3].get_weights()))
 
     nnet = model.fit(

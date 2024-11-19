@@ -45,18 +45,22 @@ PPS_MBAND = {"ch_r06": "M05",
              "ch_tb12": "M16"}
 NOAA19_CHANNELS = ["ch_r06", "ch_r09", "ch_tb11", "ch_tb12", "ch_tb37"]
 
+
 def get_missing_37_from_viirs(viirs, n19):
     """Handle missing values in n19 data by copying from viirs."""
     update = np.logical_and(
         n19.channels["ch_tb37"].mask, ~viirs.channels["ch_tb37"].mask)
-    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
+    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - \
+        viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
     n19.channels["ch_tb37"].mask[update] = False
-    
+
+
 def get_cold_37_from_viirs(viirs, n19):
     """Handle cold values in n19 data by copying from viirs."""
     update = n19.channels["ch_tb37"] < 220
     # Use VIIRS 11-3.7 for cold for missing or cold AVHRR 3.7 temperature
-    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
+    n19.channels["ch_tb37"][update] = viirs.channels["ch_tb37"][update] - \
+        viirs.channels["ch_tb11"][update] + n19.channels["ch_tb11"][update]
     n19.channels["ch_tb37"].mask[update] = False
 
 
@@ -102,6 +106,7 @@ def get_data_to_use(cfg, viirs, n19):
     use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
     return use
 
+
 def thin_training_data_1d(cfg, Xdata, Ydata):
     index = np.arange(Xdata.shape[0])
     selected = np.zeros(index.shape).astype(bool)
@@ -110,7 +115,7 @@ def thin_training_data_1d(cfg, Xdata, Ydata):
     N_obs_to_use = (Xdata.shape[1]) * 100000
     for ind in range(Xdata.shape[1]):
         var = Xdata[:, ind]
-        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
+        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num=nbins)
         for bin_i in range(nbins-1):
             use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
             try:
@@ -120,7 +125,7 @@ def thin_training_data_1d(cfg, Xdata, Ydata):
                 selection_i = index[use]
             selected[selection_i] = True
     use = ~selected
-    selection_i = np.random.choice(index[use], size= N_obs_to_use - np.sum(selected), replace=False)
+    selection_i = np.random.choice(index[use], size=N_obs_to_use - np.sum(selected), replace=False)
     selected[selection_i] = True
     return Xdata[selected, :], Ydata[selected, :]
 
@@ -137,7 +142,7 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
         varx = Xdata[:, ind]
         minv = min(varx) + min(vary)
         maxv = max(varx) + max(vary)
-        bins = np.linspace(minv, maxv + 0.001, endpoint=True, num = nbins)
+        bins = np.linspace(minv, maxv + 0.001, endpoint=True, num=nbins)
         for bin_i in range(nbins-1):
             use = np.logical_and(np.logical_and(vary >= bins[bin_i] - varx, vary < bins[bin_i+1]) - varx,
                                  ~selected)
@@ -149,7 +154,7 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
             selected[selection_i] = True
     for ind in ind_only_x:
         var = Xdata[:, ind]
-        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num = nbins)
+        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num=nbins)
         for bin_i in range(nbins-1):
             use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
             try:
@@ -160,9 +165,9 @@ def thin_training_data_2d(cfg, Xdata, Ydata):
             selected[selection_i] = True
     use = ~selected
     print(np.sum(selected))
-    selection_i = np.random.choice(index[use], size= N_obs_to_use - np.sum(selected), replace=False)
+    selection_i = np.random.choice(index[use], size=N_obs_to_use - np.sum(selected), replace=False)
     selected[selection_i] = True
-    return Xdata[selected, :], Ydata[selected, :]        
+    return Xdata[selected, :], Ydata[selected, :]
 
 
 def thin_training_data(cfg, Xdata, Ydata, thin="2D"):
@@ -173,6 +178,7 @@ def thin_training_data(cfg, Xdata, Ydata, thin="2D"):
         Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata)
     print(Xdata.shape)
     return Xdata, Ydata
+
 
 def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
     get_missing_37_from_viirs(viirs, n19)
@@ -192,7 +198,7 @@ def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
             if channel in n19.channels:
                 Ydata[:, ind] -= n19.channels["ch_tb11"][use]
     n19.mask = ~use
-    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, thin)    
+    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, thin)
     return (Xdata, Ydata)
 
 
@@ -281,14 +287,15 @@ def update_cfg_with_nn_cfg(cfg, nn_cfg):
         if getattr(cfg, cfg_name) is None:
             setattr(cfg, cfg_name, nn_cfg[cfg_name])
 
+
 def get_title_end(cfg):
     title_end = " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
         cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
     fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
-                                                                cfg.accept_sunz_min,
-                                                                cfg.accept_sunz_max,
-                                                                cfg.accept_time_diff)
-    return  title_end, fig_pattern
+                                                                 cfg.accept_sunz_min,
+                                                                 cfg.accept_sunz_max,
+                                                                 cfg.accept_time_diff)
+    return title_end, fig_pattern
 
 
 def apply_network_and_plot_from_l1c(cfg, n19_files_test, vgac_files):
@@ -297,15 +304,15 @@ def apply_network_and_plot_from_l1c(cfg, n19_files_test, vgac_files):
     update_cfg_with_nn_cfg(cfg, nn_cfg)
 
     # Make same plots:
-    title_end, fig_pattern =  get_title_end(cfg)
+    title_end, fig_pattern = get_title_end(cfg)
 
     sbaf_version = vgac_files[0].split("/")[-2]
     n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
     do_sbaf_plots(cfg, title_end, fig_pattern, "SBAF-{:s}".format(sbaf_version),
                   vgac_obj_all, n19_obj_all)
-        
-def apply_network_and_plot(cfg, n19_files_test, npp_files):
 
+
+def apply_network_and_plot(cfg, n19_files_test, npp_files):
 
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
@@ -333,7 +340,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files):
 
     # Make same plots:
 
-    title_end, fig_pattern =  get_title_end(cfg)
+    title_end, fig_pattern = get_title_end(cfg)
     fig_end = nn_cfg["nn_pattern"] + fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
@@ -346,7 +353,6 @@ def apply_network_and_plot_from_matched(cfg, match_files):
 
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
-
 
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, match_files)
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
@@ -367,16 +373,13 @@ def apply_network_and_plot_from_matched(cfg, match_files):
         vgac2_obj_all.mask = n19_obj_all.mask
 
     # Make same plots:
-    title_end, fig_pattern =  get_title_end(cfg)
+    title_end, fig_pattern = get_title_end(cfg)
     fig_end = nn_cfg["nn_pattern"] + fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
                   vgac2_obj_all, n19_obj_all)
 
     fig_end = fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
-
-
-
 
 
 if __name__ == '__main__':

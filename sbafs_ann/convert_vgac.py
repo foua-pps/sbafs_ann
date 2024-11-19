@@ -40,18 +40,19 @@ def rearrange_ydata(cfg, val):
         if channel in ["M16", "M12"]:
             val[:, ind, :] += val[:, ind_m15, :]
 
+
 def get_error_estimate(array, ind):
     return (0.5 * np.abs(array[:, ind, 1] - array[:, ind, 0])
             + 0.5 * np.abs(array[:, ind, 1] - array[:, ind, 2]))
-           
+
+
 def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
     """Apply NN SBAFS to scene."""
-    
+
     DATADIR = os.path.join(os.path.dirname(__file__), 'data')
     day_cfg_file = os.path.join(DATADIR, os.path.basename(day_cfg_file))
     night_cfg_file = os.path.join(DATADIR, os.path.basename(night_cfg_file))
 
-    
     day_cfg = read_nn_config(day_cfg_file)
     Xdata = reorganize_data(day_cfg, scene)
     day_val = apply_network(day_cfg, Xdata)
@@ -81,17 +82,16 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
         scene[channel + "_err"].values = get_error_estimate(day_val, ind).reshape(ch_size)
 
     if twilight_cfg_file is not None:
-        
+
         # Do twilight before night and so that twilight overlap with night
         # To avoid any r06, r09 between 95 and 88 using the day scheme
         for ind, channel in enumerate(twilight_cfg["channel_list_mband_out"]):
             scene[channel].values[twilight] = twilight_val[:, ind, 1].reshape(ch_size)[twilight]
             scene[channel + "_err"].values[twilight] = get_error_estimate(twilight_val, ind).reshape(ch_size)[twilight]
-            
+
     for ind, channel in enumerate(night_cfg["channel_list_mband_out"]):
-        scene[channel].values[night] = night_val[:, ind, 1].reshape(ch_size)[night] 
+        scene[channel].values[night] = night_val[:, ind, 1].reshape(ch_size)[night]
         scene[channel + "_err"].values[night] = get_error_estimate(night_val, ind).reshape(ch_size)[night]
-        
 
     return scene
 

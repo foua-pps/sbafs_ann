@@ -127,7 +127,7 @@ def getChannel(sati, chn, ang_masked):
                 ret = sati[imageN][0, :, :]
                 #: only for visable channels
                 if 'ch_r' in sati[imageN].id_tag:
-                    if sati[imageN].sun_zenith_angle_correction_applied == 'False' and sati[imageN].units != "K" :
+                    if sati[imageN].sun_zenith_angle_correction_applied == 'False' and sati[imageN].units != "K":
                         #                         from level1c4pps import apply_sunz_correction
                         print("Making sunzenith angle correction for channel {:s}".format(chn))
                         scaler = get_sunz_correction(sati)
@@ -223,6 +223,7 @@ def cutMasked(obj):
     obj.mask = None
     """
 
+
 def read_data(fname, cfg, exclude=[]):
     print("Reading {:s}".format(fname))
     my_obj = Lvl1cObj(cfg)
@@ -236,14 +237,14 @@ def read_data(fname, cfg, exclude=[]):
             my_sat['satzenith'][0, :, :].data.shape).astype(bool)
     else:
         satza_masked = np.logical_and(
-            my_sat['satzenith'][0, :, :].data <=180,
+            my_sat['satzenith'][0, :, :].data <= 180,
             my_sat['satzenith'][0, :, :].data > (cfg.accept_satz_max + 2))
     if cfg.accept_sunz_max == 180:
         sunza_masked = np.zeros(
             my_sat['sunzenith'][0, :, :].data.shape).astype(bool)
     else:
         sunza_masked = np.logical_and(
-            my_sat['sunzenith'][0, :, :].data <=180,
+            my_sat['sunzenith'][0, :, :].data <= 180,
             my_sat['sunzenith'][0, :, :].data > (cfg.accept_sunz_max + 2))
     if cfg.accept_sunz_min == 0:
         pass
@@ -386,7 +387,7 @@ def get_data_for_one_case(cfg, n19f, viirsf):
     cutEdges(n19_obj, n19_use)
     cutEdges(viirs_obj, npp_use)
 
-    #Crop but not finely, avoid matching "distant" neighbours within sat/sun
+    # Crop but not finely, avoid matching "distant" neighbours within sat/sun
     cutMasked(n19_obj)
     cutMasked(viirs_obj)
 
@@ -479,6 +480,7 @@ def get_data_to_use_cfg(cfg, n19, viirs):
     use[n19.channels["satzenith"] < 0] = False
     return use
 
+
 def write_matchupdata(filename, n19_obj, viirs_obj):
 
     with h5py.File(filename, 'w') as f:
@@ -501,22 +503,25 @@ def write_matchupdata(filename, n19_obj, viirs_obj):
         f.create_dataset("viirs_lon", data=viirs_obj.lon,
                          compression=COMPRESS_LVL)
 
+
 def cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj):
     use = get_data_to_use_cfg(cfg, n19_obj, viirs_obj)
     for var in n19_obj.channels:
         if n19_obj.channels[var] is not None:
-            n19_obj.channels[var] =  n19_obj.channels[var][use]
+            n19_obj.channels[var] = n19_obj.channels[var][use]
     for var in viirs_obj.channels:
         if viirs_obj.channels[var] is not None:
-            viirs_obj.channels[var] =  viirs_obj.channels[var][use]
+            viirs_obj.channels[var] = viirs_obj.channels[var][use]
     for var in viirs_obj.data:
-        viirs_obj.data[var] =  viirs_obj.data[var][use]
-     
+        viirs_obj.data[var] = viirs_obj.data[var][use]
+
+
 def read_matchupdata(cfg, filename):
     n19_obj = Lvl1cObj(cfg)
     viirs_obj = Lvl1cObj(cfg)
 
-    n19_var_list = [channel for channel in list(n19_obj.channels.keys()) if channel in cfg.channel_list]  + ["sunzenith", "satzenith"]
+    n19_var_list = [channel for channel in list(n19_obj.channels.keys())
+                    if channel in cfg.channel_list] + ["sunzenith", "satzenith"]
     with h5py.File(filename, 'r') as match_fh:
         for channel in cfg.channel_list + ["sunzenith", "satzenith"]:
             viirs_obj.channels[channel] = match_fh["viirs_{:s}".format(channel)][...]
