@@ -212,26 +212,48 @@ def cutMasked(obj):
     obj.lon = obj.lon[use]
     obj.time = obj.time[use]
     obj.mask = None
+    """
+    for key in obj.channels:
+        if obj.channels[key] is None:
+            continue
+        obj.channels[key] = obj.channels[key].ravel()
+    obj.lat = obj.lat.ravel()
+    obj.lon = obj.lon.ravel()
+    obj.time = obj.time.ravel()
+    obj.mask = None
+    """
 
 def read_data(fname, cfg, exclude=[]):
     print("Reading {:s}".format(fname))
     my_obj = Lvl1cObj(cfg)
     my_sat = netCDF4.Dataset(fname, 'r', format='NETCDF4')
+
+    # Mask out data far away (2 degrees) from what we want.
+    # Do not mask out bad data, as we do not want to match nodata pixel,
+    # with second nearest neighbour, that might also be close enough.
     if cfg.accept_satz_max == 180:
         satza_masked = np.zeros(
             my_sat['satzenith'][0, :, :].data.shape).astype(bool)
     else:
-        satza_masked = my_sat['satzenith'][0, :, :].data > cfg.accept_satz_max + 5
+        satza_masked = np.logical_and(
+            my_sat['satzenith'][0, :, :].data <=180,
+            my_sat['satzenith'][0, :, :].data > (cfg.accept_satz_max + 2))
     if cfg.accept_sunz_max == 180:
         sunza_masked = np.zeros(
             my_sat['sunzenith'][0, :, :].data.shape).astype(bool)
     else:
-        sunza_masked = my_sat['sunzenith'][0, :, :].data > cfg.accept_sunz_max + 5
+        sunza_masked = np.logical_and(
+            my_sat['sunzenith'][0, :, :].data <=180,
+            my_sat['sunzenith'][0, :, :].data > (cfg.accept_sunz_max + 2))
     if cfg.accept_sunz_min == 0:
         pass
     else:
-        sunza_masked = np.logical_or(
-            sunza_masked, my_sat['sunzenith'][0, :, :].data < cfg.accept_sunz_min - 5)
+        sunza_masked = np.logical_and(
+            sunza_masked,
+            np.logical_and(
+                my_sat['sunzenith'][0, :, :].data < (cfg.accept_sunz_min - 2),
+                my_sat['sunzenith'][0, :, :].data > 0))
+
     my_obj.mask = satza_masked | sunza_masked
     my_obj.lat = my_sat['lat'][:]
     my_obj.lon = my_sat['lon'][:]
@@ -372,8 +394,8 @@ def get_data_for_one_case(cfg, n19f, viirsf):
         return Lvl1cObj(cfg), Lvl1cObj(cfg)
 
     rm_viirs_obj = do_matching(cfg, n19_obj, viirs_obj)
-
     cut_matched_data_according_to_cfg(cfg, n19_obj, rm_viirs_obj)
+
     return n19_obj, rm_viirs_obj
 
 
@@ -450,9 +472,11 @@ def get_data_to_use_cfg(cfg, n19, viirs):
     use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
     use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
     use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
+    use[viirs.channels["satzenith"] < 0] = False
     use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
     use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
     use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
+    use[n19.channels["satzenith"] < 0] = False
     return use
 
 def write_matchupdata(filename, n19_obj, viirs_obj):
