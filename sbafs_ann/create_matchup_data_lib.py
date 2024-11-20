@@ -35,7 +35,7 @@ class ConfigObj(object):
 
     def __init__(self):
         self.plotDir = None
-        self.accept_satz_max = 25
+        self.accept_satz_max = 50
         self.accept_sunz_max = 180
         self.accept_sunz_min = 0
         self.accept_time_diff = 300
