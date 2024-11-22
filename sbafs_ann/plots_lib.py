@@ -160,7 +160,13 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
             the_title = 'Channel ({:s}) {:s}'.format(channel[-3:], title_end)
             plotScatterHisto(vgac_obj_all.channels[channel], n19_obj_all.channels[channel], the_title, what, [0, r_max_axis],
                              r_plot_ticks_int, r_plot_ticks_str, r_plot_ticks_loc, histd2_bins, vmax, figname)
-
+        
+        figname = '{:s}/{:s}_n19_09q06_{:s}'.format(
+            PLOT_DIR, what, fig_end)
+        the_title = 'Channel (09/06) {:s}'.format(title_end)
+        plotScatterHisto(100.0*vgac_obj_all.channels["ch_r09"]/vgac_obj_all.channels["ch_r06"], 100.0*n19_obj_all.channels["ch_r09"]/n19_obj_all.channels["ch_r06"], the_title, what, [0, r_max_axis],
+                         r_plot_ticks_int, r_plot_ticks_str, r_plot_ticks_loc, histd2_bins, vmax, figname)
+            
     for channel in ["ch_tb11", "ch_tb12", "ch_tb37"]:
         if vgac_obj_all.channels[channel] is None:
             continue
@@ -183,6 +189,8 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
             vmax,
             figname)
     plt.close("all")
+
+    
     #: tb difference t11t12
     n19_t11t12_all_flat = n19_obj_all.channels["ch_tb11"] - \
         n19_obj_all.channels["ch_tb12"]
@@ -202,14 +210,12 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     tb_plot_ticks_str = np.asarray(tb_plot_ticks_int).astype(str).tolist()
     tb_plot_ticks_loc = []
     histd2_bins = 400
-
     for i in range(len(tb_plot_ticks_int)):
         tb_plot_ticks_loc.append(
             int(np.round(i / (len(tb_plot_ticks_int) - 1) * histd2_bins)))
     #: Change last place to histd2_bins -1 instead of histd2_bins
     #: Othervise the figure looks vierd
     tb_plot_ticks_loc[-1] = histd2_bins - 1
-
     #: t11t12 simulated from VGAC
     figname = '{:s}/{:s}_n19_t11t12_{:s}'.format(PLOT_DIR, what, fig_end)
     the_title = 't11t12 diff{:s}'.format(title_end)
@@ -237,14 +243,12 @@ def do_sbaf_plots(cfg, title_end, fig_end, what, vgac_obj_all, n19_obj_all):
     tb_plot_ticks_str = np.asarray(tb_plot_ticks_int).astype(str).tolist()
     tb_plot_ticks_loc = []
     histd2_bins = 400
-
     for i in range(len(tb_plot_ticks_int)):
         tb_plot_ticks_loc.append(
             int(np.round(i / (len(tb_plot_ticks_int) - 1) * histd2_bins)))
     #: Change last place to histd2_bins -1 instead of histd2_bins
     #: Othervise the figure looks vierd
     tb_plot_ticks_loc[-1] = histd2_bins - 1
-
     #: t11t37 simulated from VGAC
     figname = '{:s}/{:s}_n19_t11t37_{:s}'.format(PLOT_DIR, what, fig_end)
     the_title = 't11t37 diff{:s}'.format(title_end)
