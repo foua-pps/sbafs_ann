@@ -428,8 +428,8 @@ def get_merged_matchups_for_files(cfg, files):
         tic_i = time.time()
         print("Memory usage {:3.1f}, reading {:s}".format(
             resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024), filename))
-        print("Reading one file took: {:3.1f} seconds".format(time.time() - tic_i))
         n19_obj, viirs_obj = read_matchupdata(cfg, filename)
+        print("Reading one file took: {:3.1f} seconds".format(time.time() - tic_i))
         viirs_obj_all += viirs_obj
         n19_obj_all += n19_obj
         print(n19_obj_all.channels["ch_tb11"].shape)
