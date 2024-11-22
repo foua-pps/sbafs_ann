@@ -19,10 +19,12 @@
 
 import argparse
 import glob
+import time
 from sbafs_ann.sbaf_ann_lib import apply_network_and_plot, apply_network_and_plot_from_matched, apply_network_and_plot_from_l1c
 
 if __name__ == "__main__":
     """ Apply network and make some plots."""
+    tic = time.time()
     parser = argparse.ArgumentParser(
         description=('Apply network and plot'))
     parser.add_argument('--plot_dir', type=str, nargs='?',
@@ -75,4 +77,4 @@ if __name__ == "__main__":
         match_files = glob.glob(
             "{:s}/matchup*.h5".format(options.match_dir))
         apply_network_and_plot_from_matched(options, match_files)
- 
+    print("Running took: {:3.1f} seconds".format(time.time() - tic))

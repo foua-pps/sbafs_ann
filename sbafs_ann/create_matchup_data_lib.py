@@ -27,6 +27,7 @@ import datetime
 import resource
 import os
 import h5py
+import time
 COMPRESS_LVL = 6
 
 
@@ -422,13 +423,18 @@ def get_matchups(cfg, n19f, viirsf):
 def get_merged_matchups_for_files(cfg, files):
     n19_obj_all = Lvl1cObj(cfg)
     viirs_obj_all = Lvl1cObj(cfg)
+    tic = time.time()
     for filename in sorted(files):
+        tic_i = time.time()
         print("Memory usage {:3.1f}, reading {:s}".format(
             resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024), filename))
+        print("Reading one file took: {:3.1f} seconds".format(time.time() - tic_i))
         n19_obj, viirs_obj = read_matchupdata(cfg, filename)
         viirs_obj_all += viirs_obj
         n19_obj_all += n19_obj
         print(n19_obj_all.channels["ch_tb11"].shape)
+        print("Merging one file took: {:3.1f} seconds".format(time.time() - tic_i))
+    print("Reading ALL fileS took: {:3.1f} seconds".format(time.time() - tic))
     return n19_obj_all, viirs_obj_all
 
 
