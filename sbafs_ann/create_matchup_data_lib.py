@@ -420,7 +420,7 @@ def get_matchups(cfg, n19f, viirsf):
     return n19_obj, rm_viirs_obj
 
 
-def get_merged_matchups_for_files(cfg, files):
+def get_merged_matchups_for_files(cfg, files, write=False):
     n19_obj_all = Lvl1cObj(cfg)
     viirs_obj_all = Lvl1cObj(cfg)
     tic = time.time()
@@ -434,7 +434,13 @@ def get_merged_matchups_for_files(cfg, files):
         n19_obj_all += n19_obj
         print(n19_obj_all.channels["ch_tb11"].shape)
         print("Merging one file took: {:3.1f} seconds".format(time.time() - tic_i))
-    print("Reading ALL fileS took: {:3.1f} seconds".format(time.time() - tic))
+    print("Reading ALL files took: {:3.1f} seconds".format(time.time() - tic))
+    if write:
+        sub_dir = filename.split("/")[-2]
+        write_matchupdata(
+            "{:s}/merged_matchup_data_{:s}.h5".format(
+                os.path.dirname(filename), sub_dir.lower()),
+            n19_obj_all, viirs_obj_all)
     return n19_obj_all, viirs_obj_all
 
 
@@ -468,7 +474,6 @@ def merge_matchup_data_for_files(cfg, n19_files, npp_files):
                 print(counter, os.path.basename(n19f), os.path.basename(viirsf))
                 viirs_obj_all += viirs_obj
                 n19_obj_all += n19_obj
-                print(n19_obj_all.channels["ch_tb11"].shape)
     return n19_obj_all, viirs_obj_all
 
 
@@ -500,18 +505,24 @@ def write_matchupdata(filename, n19_obj, viirs_obj):
         for varname in ["abs_time_diff_s", "distance_between_pixels_m"]:
             f.create_dataset(varname, data=viirs_obj.data[varname],
                              compression=COMPRESS_LVL)
-        f.create_dataset("avhrr_lat", data=n19_obj.lat,
-                         compression=COMPRESS_LVL)
-        f.create_dataset("avhrr_lon", data=n19_obj.lon,
-                         compression=COMPRESS_LVL)
-        f.create_dataset("viirs_lat", data=viirs_obj.lat,
-                         compression=COMPRESS_LVL)
-        f.create_dataset("viirs_lon", data=viirs_obj.lon,
-                         compression=COMPRESS_LVL)
+        if n19_obj.lat is not None:
+            f.create_dataset("avhrr_lat", data=n19_obj.lat,
+                             compression=COMPRESS_LVL)
+            f.create_dataset("avhrr_lon", data=n19_obj.lon,
+                             compression=COMPRESS_LVL)
+            f.create_dataset("viirs_lat", data=viirs_obj.lat,
+                             compression=COMPRESS_LVL)
+            f.create_dataset("viirs_lon", data=viirs_obj.lon,
+                             compression=COMPRESS_LVL)
 
 
 def cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj):
     use = get_data_to_use_cfg(cfg, n19_obj, viirs_obj)
+    cut_matched_data_according_to_use(cfg, n19_obj, viirs_obj, use)
+
+
+def cut_matched_data_according_to_use(cfg, n19_obj, viirs_obj, use):
+
     for var in n19_obj.channels:
         if n19_obj.channels[var] is not None:
             n19_obj.channels[var] = n19_obj.channels[var][use]
@@ -534,7 +545,6 @@ def read_matchupdata(cfg, filename):
             viirs_obj.channels[channel] = np.ma.masked_array(
                 viirs_obj.channels[channel], mask=viirs_obj.channels[channel] < 0)
             if channel in n19_var_list:
-                print(n19_var_list)
                 n19_obj.channels[channel] = match_fh["avhrr_{:s}".format(channel)][...]
                 n19_obj.channels[channel] = np.ma.masked_array(
                     n19_obj.channels[channel], mask=n19_obj.channels[channel] < 0)

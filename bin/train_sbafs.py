@@ -70,9 +70,15 @@ if __name__ == "__main__":
               
     options = parser.parse_args()
     files_train = glob.glob(
-        "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.train_dir))
+        "{:s}/merged_matchup_data_*train*.h5".format(options.train_dir))
     files_valid = glob.glob(
-        "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.valid_dir))
+        "{:s}/merged_matchup_data_*valid*.h5".format(options.valid_dir))
+    if len(files_train)!=1 or len(files_valid)!=1:
+        print("Not using merged match up data, more or less than 1 file!")
+        files_train = glob.glob(
+            "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.train_dir))
+        files_valid = glob.glob(
+            "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.valid_dir))
     if len(files_train)<1 or len(files_valid)<1:
         raise ValueError("Missing training or/and validation files!")
     options.thin = "1D"

@@ -25,7 +25,8 @@ from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 from sbafs_ann.train_sbaf_nn_lib import train_network
-from sbafs_ann.create_matchup_data_lib import get_merged_matchups_for_files
+from sbafs_ann.create_matchup_data_lib import (get_merged_matchups_for_files,
+                                               cut_matched_data_according_to_use)
 from sbafs_ann import __version__
 import datetime
 import resource
@@ -179,40 +180,43 @@ def thin_training_data(cfg, Xdata, Ydata, thin="2D"):
     print(Xdata.shape)
     return Xdata, Ydata
 
-def calculate_best_linear_fit(cfg, n19, viirs, use):
+
+def calculate_best_linear_fit(cfg, n19, viirs):
     """Print the best linear fit for the training data to file."""
     with open(cfg.best_linear_file, "a") as linear_file:
         for channel in cfg.channel_list:
             if channel in n19.channels:
-                k1, m1 = np.ma.polyfit(viirs.channels[channel][use], n19.channels[channel][use], 1)
+                k1, m1 = np.ma.polyfit(viirs.channels[channel], n19.channels[channel], 1)
                 print("{:s} n19 = {:3.3f} * viirs + {:3.3f}".format(channel, k1, m1))
-                linear_file.write("{:s} n19 = {:3.3f} * viirs + {:3.3f} \n".format(channel, k1, m1))
+                linear_file.write("{:s} n19 = {:3.3f} * viirs + {:3.3f}, N = {:d} \n".format(channel, k1, m1, len(viirs.channels[channel])))
 
-        
-def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
+
+def select_training_data(cfg, viirs, n19, update_37=False):
     get_missing_37_from_viirs(viirs, n19)
     if update_37:
         get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
     use = get_data_to_use(cfg, viirs, n19)
-    calculate_best_linear_fit(cfg, n19, viirs, use)
-    Xdata = np.empty((sum(use), len(cfg.channel_list)))
+    cut_matched_data_according_to_use(cfg, n19, viirs, use)
+
+    
+def create_training_data(cfg, viirs, n19, thin=False):
+    n_obs = len(n19.channels["ch_tb11"])
+    Xdata = np.empty((n_obs, len(cfg.channel_list)))
     n19_channels = [ch for ch in n19.channels if ch in cfg.channel_list]
-    Ydata = np.empty((sum(use), len(n19_channels)))
+    Ydata = np.empty((n_obs, len(n19_channels)))
     for ind, channel in enumerate(cfg.channel_list):
-        Xdata[:, ind] = np.copy(viirs.channels[channel][use])
+        Xdata[:, ind] = np.copy(viirs.channels[channel])
         if channel in n19.channels:
-            Ydata[:, ind] = np.copy(n19.channels[channel][use])
+            Ydata[:, ind] = np.copy(n19.channels[channel])
         if channel in ["ch_tb12", "ch_tb37"]:
-            Xdata[:, ind] -= viirs.channels["ch_tb11"][use]
+            Xdata[:, ind] -= viirs.channels["ch_tb11"]
             if channel in n19.channels:
-                Ydata[:, ind] -= n19.channels["ch_tb11"][use]
+                Ydata[:, ind] -= n19.channels["ch_tb11"]
         if channel in ["ch_r09", "ch_r16"] and cfg.use_channel_quotas:
-            Xdata[:, ind] = Xdata[:, ind]/viirs.channels["ch_r06"][use]
+            Xdata[:, ind] = Xdata[:, ind]/viirs.channels["ch_r06"]
             if channel in n19.channels:
-                Ydata[:, ind] = Ydata[:, ind] / n19.channels["ch_r06"][use]
-            
-    n19.mask = ~use
+                Ydata[:, ind] = Ydata[:, ind] / n19.channels["ch_r06"]
     Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, thin)
     return (Xdata, Ydata)
 
@@ -284,19 +288,26 @@ def read_nn_config(nn_cfg_file):
         nn_cfg[key] = os.path.join(nn_dir, nn_cfg[key])
     return nn_cfg
 
-
+    
 def train_network_for_files(cfg, files_train, files_valid):
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
-    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
+    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
+    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=cfg.thin)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    # n19_obj_all = None
+    # viirs_obj_al = None
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    n19_obj_all2, viirs_obj_all2 = get_merged_matchups_for_files(cfg, files_valid)
+    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
+    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2, thin=cfg.thin) 
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
     n19_obj_all = None
     viirs_obj_all = None
-    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_valid)
-    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True, thin=cfg.thin)
-    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    n19_obj_all2 = None
+    viirs_obj_all2 = None  
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 
@@ -329,10 +340,7 @@ def apply_network_and_plot_from_l1c(cfg, n19_files_test, vgac_files):
 
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
-
-    # Make same plots:
     title_end, fig_pattern = get_title_end(cfg)
-
     sbaf_version = vgac_files[0].split("/")[-2]
     n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
     do_sbaf_plots(cfg, title_end, fig_pattern, "SBAF-{:s}".format(sbaf_version),
@@ -358,6 +366,7 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files):
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
     n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
+    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=False)   
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     ytest = apply_network(nn_cfg, Xtest)
     vgac2_obj_all = get_data_from_nnet_output(cfg, n19_obj_all, viirs_obj_all, ytest)
@@ -370,16 +379,18 @@ def apply_network_and_plot(cfg, n19_files_test, npp_files):
 
 
 def apply_network_and_plot_from_matched(cfg, match_files):
-
+    
+    date = cfg.nn_cfg_file.split("2024")[-1][0:4]
     nn_cfg = read_nn_config(cfg.nn_cfg_file)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, match_files)
+    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=False)   
     Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
     ytest = apply_network(nn_cfg, Xtest)
     vgac2_obj_all = get_data_from_nnet_output(cfg, n19_obj_all, viirs_obj_all, ytest)
     title_end, fig_pattern = get_title_end(cfg)
     fig_end = nn_cfg["nn_pattern"] + fig_pattern
-    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
+    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN-{:s}".formate(date),
                   vgac2_obj_all, n19_obj_all)
     fig_end = fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
