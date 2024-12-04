@@ -75,7 +75,10 @@ if __name__ == "__main__":
 
     if options.match_dir is not None:
         match_files = glob.glob(
-            "{:s}/matchup*.h5".format(options.match_dir))
+            "{:s}/merged_matchup_data_*test*.h5".format(options.match_dir))
+        if len(match_files) != 1:
+            match_files = glob.glob(
+                "{:s}/matchup*.h5".format(options.match_dir))
         apply_network_and_plot_from_matched(options, match_files)
     elif options.n19_test is not None and options.viirs_dir is not None:
         apply_network_and_plot(options, n19_files, viirs_files)
