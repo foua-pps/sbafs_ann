@@ -30,6 +30,8 @@ def reorganize_data(cfg, scene):
         Xdata[:, ind] = np.copy(scene[channel].values.ravel())
         if channel in ["M16", "M12"]:
             Xdata[:, ind] -= np.copy(scene["M15"].values.ravel())
+        if channel in ["M07"] and cfg.use_channel_quotas:
+            Xdata[:, ind] *= np.copy(scene["M05"].values.ravel())
     return Xdata
 
 

@@ -64,7 +64,10 @@ if __name__ == "__main__":
     parser.add_argument('--n_hidden_layer_3', type=int, nargs='?',
                         required=False, default=0,
                         help="Number of nodes in first hidden layer")
-        
+    parser.add_argument('--use_channel_quotas', type=bool, nargs='?',
+                        required=False, default=True,
+                        help="Use channel quotas")
+              
     options = parser.parse_args()
     files_train = glob.glob(
         "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.train_dir))
