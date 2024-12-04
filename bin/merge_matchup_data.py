@@ -37,8 +37,8 @@ if __name__ == "__main__":
                         help="Allowd time difference in seconds")
     cfg = ConfigObj()
     options = parser.parse_args()
-    #cfg["accept_time_diff"] = options.accept_time_diff
-    #cfg["accept_satz_max"] = options.accept_satz_max
+    cfg.accept_time_diff = options.accept_time_diff
+    cfg.accept_satz_max = options.accept_satz_max
     files = glob.glob(
         "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.match_dir))
     get_merged_matchups_for_files(cfg, files, write=True)
