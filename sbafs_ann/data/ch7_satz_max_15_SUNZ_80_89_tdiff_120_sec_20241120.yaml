@@ -34,6 +34,7 @@ nn_cfg_file: ch7_satz_max_15_SUNZ_80_89_tdiff_120_sec_20241120.yaml
 nn_pattern: ch7_satz_max_15_SUNZ_80_89_tdiff_120_sec_20241120
 sbaf_ann-version: 0.0.11.dev2+gcab1e20
 t_loss_file: ch7_satz_max_15_SUNZ_80_89_tdiff_120_sec_20241120_tloss.txt
+use_channel_quotas: false
 v_loss_file: ch7_satz_max_15_SUNZ_80_89_tdiff_120_sec_20241120_vloss.txt
 xmean: Xtrain_mean_ch7_satz_max_15_SUNZ_80_89_tdiff_120_sec_20241120.txt
 xscale: Xtrain_scale_ch7_satz_max_15_SUNZ_80_89_tdiff_120_sec_20241120.txt

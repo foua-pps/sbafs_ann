@@ -25,6 +25,7 @@ n_hidden_layer_3: 5
 n_truths: 3
 nn_cfg_file: ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.yaml
 t_loss_file: ch4_SATZ_less_25_SUNZ_90_180_TD_5_min_tloss.txt
+use_channel_quotas: false
 v_loss_file: ch4_SATZ_less_25_SUNZ_90_180_TD_5_min_vloss.txt
 xmean: Xtrain_mean_ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.txt
 xscale: Xtrain_scale_ch4_SATZ_less_25_SUNZ_90_180_TD_5_min.txt
