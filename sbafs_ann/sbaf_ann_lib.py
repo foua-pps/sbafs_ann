@@ -367,11 +367,11 @@ def get_data_from_nnet_output(cfg, n19_obj_all, viirs_obj_all, ytest):
 
 
 
-linear_fit_all  = {"ch_tb11": (1.001, -0.038, 41474568),
-                   "ch_tb12": (0.991, 2.151, 41474568),
-                   "ch_tb37": (0.973, 6.171, 41474568),
-                   "ch_r06": (0.853, 1.852, 19010195),
-                   "ch_r09": (0.851, 1.116, 19010195)}
+linear_fit_all  = {"ch_tb11": (1.0006, -0.0378, 41474568),
+                   "ch_tb12": (0.9906, 2.1505, 41474568),
+                   "ch_tb37": (0.9734, 6.1707, 41474568),
+                   "ch_r06": (0.8534, 1.8517, 19010195),
+                   "ch_r09": (0.8507, 1.1157, 19010195)}
 
 
 def get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all, nn_linear_fit=False):
