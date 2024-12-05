@@ -287,7 +287,10 @@ def read_nn_config(nn_cfg_file):
         nn_cfg = yaml.safe_load(y_fh.read())
     for key in ["coeff_file", "xmean", "ymean", "xscale", "yscale",
                 "nn_cfg_file", "t_loss_file", "v_loss_file", "linear_fit_file"]:
-        nn_cfg[key] = os.path.join(nn_dir, nn_cfg[key])
+        if key in nn_cfg:
+            nn_cfg[key] = os.path.join(nn_dir, nn_cfg[key])
+        else:
+            nn_cfg[key] = None
     return nn_cfg
 
     
@@ -421,12 +424,15 @@ def apply_network_and_plot_from_matched(cfg, match_files):
     fig_end = nn_cfg["nn_pattern"] + fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN-{:s}".format(date),
                   vgac2_obj_all, n19_obj_all)
+
     fig_end = fig_pattern
     do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
     vgac3_obj_all = get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all)
     do_sbaf_plots(cfg, title_end, fig_end, "SBAF-linear-all",  vgac3_obj_all, n19_obj_all)
-    vgac4_obj_all = get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all, nn_linear_fit=True)
-    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-linear",  vgac4_obj_all, n19_obj_all)
-    
+    if nn_cfg["linear_fit_file"] is not None:
+        vgac4_obj_all = get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all, nn_linear_fit=True)
+        do_sbaf_plots(cfg, title_end, fig_end, "SBAF-linear",  vgac4_obj_all, n19_obj_all)
+
+
 if __name__ == '__main__':
     pass
