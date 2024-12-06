@@ -41,7 +41,8 @@ def rearrange_ydata(cfg, val):
     for ind, channel in enumerate(cfg["channel_list_mband_out"]):
         if channel in ["M16", "M12"]:
             val[:, ind, :] += val[:, ind_m15, :]
-
+        if channel in ["M07"] and cfg.use_channel_quotas:
+            Xdata[:, ind] *= np.copy(scene["M05"].values.ravel())
 
 def get_error_estimate(array, ind):
     return (0.5 * np.abs(array[:, ind, 1] - array[:, ind, 0])
