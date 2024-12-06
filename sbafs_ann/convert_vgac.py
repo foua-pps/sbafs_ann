@@ -30,8 +30,8 @@ def reorganize_data(cfg, scene):
         Xdata[:, ind] = np.copy(scene[channel].values.ravel())
         if channel in ["M16", "M12"]:
             Xdata[:, ind] -= np.copy(scene["M15"].values.ravel())
-        if channel in ["M07"] and cfg.use_channel_quotas:
-            Xdata[:, ind] *= np.copy(scene["M05"].values.ravel())
+        if channel in ["M07", "M10"] and cfg["use_channel_quotas"]:
+            Xdata[:, ind] = Xdata[:, ind]/np.copy(scene["M05"].values.ravel())
     return Xdata
 
 
@@ -41,8 +41,9 @@ def rearrange_ydata(cfg, val):
     for ind, channel in enumerate(cfg["channel_list_mband_out"]):
         if channel in ["M16", "M12"]:
             val[:, ind, :] += val[:, ind_m15, :]
-        if channel in ["M07"] and cfg.use_channel_quotas:
-            Xdata[:, ind] *= np.copy(scene["M05"].values.ravel())
+        if channel in ["M07"] and cfg["use_channel_quotas"]:
+            ind_m05 = cfg["channel_list_mband_out"].index("M05")
+            val[:, ind] *=  val[:, ind_m05, :]
 
 def get_error_estimate(array, ind):
     return (0.5 * np.abs(array[:, ind, 1] - array[:, ind, 0])
