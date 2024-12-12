@@ -77,7 +77,10 @@ class Lvl1cObj(object):
             return self
         for channel in self.channels:
             if self.channels[channel] is None:
+                self.channels[channel] = other.channels[channel]
+            elif other.channels[channel] is None:
                 continue
+            
             self.channels[channel] = np.ma.concatenate(
                 [self.channels[channel], other.channels[channel]])
             try:
