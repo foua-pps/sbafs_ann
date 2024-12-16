@@ -25,6 +25,10 @@ import matplotlib.pyplot as plt
 import copy
 import os
 
+from sbafs_ann.create_matchup_data_lib import (merge_matchup_data_for_files,
+                                               Lvl1cObj,
+                                               get_merged_matchups_for_files)
+
 matplotlib.rcParams["font.size"] = 20
 
 
@@ -315,6 +319,106 @@ def plot_latlon(n19_obj, viirs_obj, title_end, figname):
     ax1.set_xlabel('Longitude')
     fig.savefig(figname + 'png')
 
+
+def get_data_from_nnet_output(cfg, n19_obj_all, viirs_obj_all, ytest):
+    vgac2_obj_all = Lvl1cObj(cfg)
+    for ind, channel in enumerate(cfg.channel_list):
+        if channel in n19_obj_all.channels and n19_obj_all.channels[channel] is not None:
+            vgac2_obj_all.channels[channel] = ytest[:, ind, 1].copy()
+            if channel in ["ch_tb12", "ch_tb37"]:
+                vgac2_obj_all.channels[channel] += ytest[:, cfg.channel_list.index("ch_tb11"), 1]
+            if channel in ["ch_r09"] and cfg.use_channel_quotas:
+                vgac2_obj_all.channels[channel] *= ytest[:, cfg.channel_list.index("ch_r06"), 1]
+            vgac2_obj_all.channels[channel] =np.ma.masked_array(vgac2_obj_all.channels[channel],
+                                                                mask=vgac2_obj_all.channels[channel] < 0)    
+    vgac2_obj_all.mask = n19_obj_all.mask          
+    return vgac2_obj_all
+
+
+linear_fit_all  = {"ch_tb11": (1.0006, -0.0378, 41474568),
+                   "ch_tb12": (0.9906, 2.1505, 41474568),
+                   "ch_tb37": (0.9734, 6.1707, 41474568),
+                   "ch_r06": (0.8534, 1.8517, 19010195),
+                   "ch_r09": (0.8507, 1.1157, 19010195)}
+
+
+def get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all, nn_linear_fit=False):
+    coeffs = linear_fit_all
+    if nn_linear_fit:
+        DATA_DIR = os.path.join(os.path.dirname(__file__), 'data')
+        linear_fit_file = os.path.join(DATA_DIR, cfg.linear_fit_file)
+        with open(linear_fit_file) as y_fh:
+            coeffs = yaml.safe_load(y_fh.read())
+    vgac2_obj_all = Lvl1cObj(cfg)
+    for channel in cfg.channel_list:
+        if channel in n19_obj_all.channels:
+            print(channel)
+            k_param, m_param, dummy = coeffs[channel]
+            vgac2_obj_all.channels[channel] = np.float32(k_param) * viirs_obj_all.channels[channel] + np.float32(m_param)
+            vgac2_obj_all.mask = n19_obj_all.mask
+    return vgac2_obj_all
+
+
+def get_title_end(cfg):
+    title_end = " SATZ < {:d} SUNZ {:d} - {:d}, TD = {:d} sec".format(
+        cfg.accept_satz_max, cfg.accept_sunz_min, cfg.accept_sunz_max, cfg.accept_time_diff)
+    fig_pattern = "_satz_{:d}_sunz_{:d}_{:d}_tdiff_{:d}s".format(cfg.accept_satz_max,
+                                                                 cfg.accept_sunz_min,
+                                                                 cfg.accept_sunz_max,
+                                                                 cfg.accept_time_diff)
+    return title_end, fig_pattern
+
+
+def apply_network_and_plot_from_l1c(cfg, n19_files_test, vgac_files):
+
+    nn_cfg = read_nn_config(cfg.nn_cfg_file)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+    title_end, fig_pattern = get_title_end(cfg)
+    sbaf_version = vgac_files[0].split("/")[-2]
+    n19_obj_all, vgac_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, vgac_files)
+    do_sbaf_plots(cfg, title_end, fig_pattern, "SBAF-{:s}".format(sbaf_version),
+                  vgac_obj_all, n19_obj_all)
+
+    
+def apply_network_and_plot(cfg, n19_files_test, npp_files):
+
+    nn_cfg = read_nn_config(cfg.nn_cfg_file)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+    n19_obj_all, viirs_obj_all = merge_matchup_data_for_files(cfg, n19_files_test, npp_files)
+    select_training_data(cfg, viirs_obj_all, n19_obj_all)   
+    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
+    ytest = apply_network(nn_cfg, Xtest)
+    vgac2_obj_all = get_data_from_nnet_output(cfg, n19_obj_all, viirs_obj_all, ytest)
+    title_end, fig_pattern = get_title_end(cfg)
+    fig_end = nn_cfg["nn_pattern"] + fig_pattern
+    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN",
+                  vgac2_obj_all, n19_obj_all)
+    fig_end = fig_pattern
+    do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
+
+
+def apply_network_and_plot_from_matched(cfg, match_files):
+    
+    date = cfg.nn_cfg_file.split("2024")[-1][0:4]
+    nn_cfg = read_nn_config(cfg.nn_cfg_file)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, match_files)
+    select_training_data(cfg, viirs_obj_all, n19_obj_all)   
+    Xtest, ytest = create_training_data(cfg, viirs_obj_all, n19_obj_all)
+    ytest = apply_network(nn_cfg, Xtest)
+    vgac2_obj_all = get_data_from_nnet_output(cfg, n19_obj_all, viirs_obj_all, ytest)
+    title_end, fig_pattern = get_title_end(cfg)
+    fig_end = nn_cfg["nn_pattern"] + fig_pattern
+    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-NN-{:s}".format(date),
+                  vgac2_obj_all, n19_obj_all)
+
+    fig_end = fig_pattern
+    do_sbaf_plots(cfg, title_end, fig_end, "VIIRS", viirs_obj_all, n19_obj_all)
+    vgac3_obj_all = get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all)
+    do_sbaf_plots(cfg, title_end, fig_end, "SBAF-linear-all",  vgac3_obj_all, n19_obj_all)
+    if nn_cfg["linear_fit_file"] is not None:
+        vgac4_obj_all = get_data_from_linear_coeff(cfg, n19_obj_all, viirs_obj_all, nn_linear_fit=True)
+        do_sbaf_plots(cfg, title_end, fig_end, "SBAF-linear",  vgac4_obj_all, n19_obj_all)
 
 if __name__ == '__main__':
     pass

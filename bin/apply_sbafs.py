@@ -20,7 +20,7 @@
 import argparse
 import glob
 import time
-from sbafs_ann.sbaf_ann_lib import apply_network_and_plot, apply_network_and_plot_from_matched, apply_network_and_plot_from_l1c
+from sbafs_ann.plots_lib import apply_network_and_plot, apply_network_and_plot_from_matched, apply_network_and_plot_from_l1c
 
 if __name__ == "__main__":
     """ Apply network and make some plots."""

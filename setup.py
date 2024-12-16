@@ -13,7 +13,7 @@ except ImportError:
     pass
 
 
-requires = ['satpy', 'tensorflow', 'numpy', 'netCDF4']
+requires = ['satpy', 'tensorflow', 'numpy', 'netCDF4', 'scikit-learn']
 
 
 NAME = "sbafs_ann"
