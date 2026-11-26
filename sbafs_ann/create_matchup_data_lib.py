@@ -29,77 +29,8 @@ import os
 import h5py
 import time
 COMPRESS_LVL = 6
-from sbafs_ann.read_matchup_data_lib import  cut_matched_data_according_to_cfg
+from sbafs_ann.read_matchup_data_lib import  cut_matched_data_according_to_cfg, Lvl1cObj
 
-class ConfigObj(object):
-    """Object to hold config stuff."""
-
-    def __init__(self):
-        self.plotDir = None
-        self.accept_satz_max = 50
-        self.accept_sunz_max = 180
-        self.accept_sunz_min = 0
-        self.accept_time_diff = 300
-        self.max_distance_between_pixels_m = 3000
-        self.channel_list = ["ch_r06",
-                             "ch_r09",
-                             "ch_r16",
-                             "ch_tb11",
-                             "ch_tb12",
-                             "ch_tb37",
-                             "ch_tb85",
-                             "sunzenith",
-                             "satzenith"]
-
-
-class Lvl1cObj(object):
-    """Object to hold data."""
-
-    def __init__(self, cfg):
-        self.channel_list = cfg.channel_list
-        self.channels = {"ch_r06": None,
-                         "ch_r09": None,
-                         "ch_tb11": None,
-                         "ch_tb12": None,
-                         "ch_tb37": None}
-        self.data = {}
-        self.mask = None
-        self.lat = None
-        self.lon = None
-
-    def __add__(self, other):
-        """Adding two objects together"""
-        if self.channels["ch_tb11"] is None:
-            # print("Self is None")
-            return other
-        if other.channels["ch_tb11"] is None:
-            print("other is None")
-            return self
-        for channel in self.channels:
-            if self.channels[channel] is None:
-                self.channels[channel] = other.channels[channel]
-            elif other.channels[channel] is None:
-                continue
-            
-            self.channels[channel] = np.ma.concatenate(
-                [self.channels[channel], other.channels[channel]])
-            try:
-                self.channels[channel].mask[0]
-            except IndexError:
-                self.channels[channel].mask = np.zeros(
-                    self.channels[channel].shape).astype(bool)
-        for dataset in self.data:
-            self.data[dataset] = np.concatenate([self.data[dataset], other.data[dataset]])
-
-        try:
-            self.lat = np.concatenate([self.lat, other.lat])
-            self.lon = np.concatenate([self.lon, other.lon])
-        except BaseException:
-            self.lat = None
-            self.lon = None
-        if self.mask is not None:
-            self.mask = np.concatenate([self.mask, other.mask])
-        return self
 
 
 def get_sunz_correction(scene):  # , REFL_BANDS):
@@ -424,8 +355,6 @@ def get_matchups(cfg, n19f, viirsf):
 
 
 
-
-
 def create_matchup_data_for_files(cfg, n19_files, npp_files):
     counter = 0
     for n19f in n19_files:
@@ -457,21 +386,6 @@ def merge_matchup_data_for_files(cfg, n19_files, npp_files):
                 viirs_obj_all += viirs_obj
                 n19_obj_all += n19_obj
     return n19_obj_all, viirs_obj_all
-
-
-def get_data_to_use_cfg(cfg, n19, viirs):
-
-    use = viirs.data["abs_time_diff_s"] <= cfg.accept_time_diff
-    use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
-    use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
-    use[viirs.channels["satzenith"] < 0] = False
-    use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
-    use[n19.channels["satzenith"] < 0] = False
-    return use
 
 
 def write_matchupdata(filename, n19_obj, viirs_obj):
