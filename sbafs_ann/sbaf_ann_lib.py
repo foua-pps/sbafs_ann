@@ -26,7 +26,11 @@ from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 from sbafs_ann.train_sbaf_nn_lib import train_network
 from sbafs_ann.create_matchup_data_lib import (get_merged_matchups_for_files,
+                                               get_merged_matchups_for_files_seviri_fci,
                                                cut_matched_data_according_to_use)
+from sbafs_ann.read_matchup_data_lib import (get_merged_matchups_for_files,
+                                             get_merged_matchups_for_files_seviri_fci,
+                                             cut_matched_data_according_to_use)
 from sbafs_ann import __version__
 import datetime
 import resource
@@ -292,8 +296,7 @@ def read_nn_config(nn_cfg_file):
             nn_cfg[key] = None
     return nn_cfg
 
-    
-def train_network_for_files(cfg, files_train, files_valid):
+def get_data_viirs_avhrr(cfg, files_train, files_valid):
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
     n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
@@ -303,17 +306,42 @@ def train_network_for_files(cfg, files_train, files_valid):
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
     calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
-
-    # It 3.7µm not updated for linear fit, update it now
-    # select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
-    # select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
     Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=cfg.thin)  
     Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2, thin=cfg.thin) 
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     n19_obj_all = None
     viirs_obj_all = None
     n19_obj_all2 = None
-    viirs_obj_all2 = None  
+    viirs_obj_all2 = None
+    return nn_cfg, Xtrain, ytrain, Xvalid, yvalid
+
+
+def get_data_sevrir_faci(cfg, files_train, files_valid):
+    nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
+    update_cfg_with_nn_cfg(cfg, nn_cfg)
+    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files_seviri_fci(cfg, files_train)
+    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    n19_obj_all2, viirs_obj_all2 = get_merged_matchups_for_files_seviri_fci(cfg, files_valid)
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=False)
+    calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
+    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=cfg.thin)  
+    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2, thin=cfg.thin) 
+    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
+    n19_obj_all = None
+    viirs_obj_all = None
+    n19_obj_all2 = None
+    viirs_obj_all2 = None
+    return nn_cfg, Xtrain, ytrain, Xvalid, yvalid
+    
+def train_network_for_files(cfg, files_train, files_valid):
+
+    if "viirs" in files_train[0]:
+        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_viirs_avhrr(cfg, files_train, files_valid)
+    else:    
+        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_seviri_fci(cfg, files_train, files_valid)
+    
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 
