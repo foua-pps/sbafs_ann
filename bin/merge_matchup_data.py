@@ -19,8 +19,8 @@
 
 import argparse
 import glob
-from sbafs_ann.create_matchup_data_lib import (ConfigObj, get_merged_matchups_for_files)
-
+from sbafs_ann.create_matchup_data_lib import (get_merged_matchups_for_files)
+from sbafs_ann.utils import DefaultAVHRRConfigObj
 
 if __name__ == "__main__":
     """ Train NN SBAF"""
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument('--accept_time_diff', type=int, nargs='?',
                         required=False, default=120,
                         help="Allowd time difference in seconds")
-    cfg = ConfigObj()
+    cfg = DefaultAVHRRConfigObj()
     options = parser.parse_args()
     cfg.accept_time_diff = options.accept_time_diff
     cfg.accept_satz_max = options.accept_satz_max
