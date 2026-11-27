@@ -79,17 +79,15 @@ if __name__ == "__main__":
     files_valid = glob.glob(f"{options.valid_dir}/merged_matchup_data_*valid*.h5")
     if len(files_train)!=1 or len(files_valid)!=1:
         print("Not using merged match up data, more or less than 1 file!")
-        files_train = glob.glob(f"{options.train_dir}/matchup_{options.imager1}_*_*{options.imager2}*.h5")
-        files_valid = glob.glob(f"{options.valid_dir}/matchup_{options.imager1}_*_*{options.imager2}*.h5")
-    if len(files_train)!=1 or len(files_valid)!=1:
-        print("Not using merged match up data, more or less than 1 file!")
         files_train = glob.glob(f"{options.train_dir}/{options.imager1}_{options.imager2}*.nc")
         files_valid = glob.glob(f"{options.valid_dir}/{options.imager1}_{options.imager2}*.nc")
         print(f"{options.valid_dir}/{options.imager1}_{options.imager2}*.nc")
     if len(files_train)<1 or len(files_valid)<1:
         raise ValueError("Missing training or/and validation files!")
+    if len(files_train)>1 or len(files_valid)>1:
+        raise ValueError("Too many training or/and validation files!")
     options.thin = "1D"
     if options.thinning_method_2D:
         options.thin = "2D"
     
-    train_network_for_files(options, files_train, files_valid)
+    train_network_for_files(options, files_train[0], files_valid[0])

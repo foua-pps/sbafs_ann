@@ -25,7 +25,8 @@ from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 from sbafs_ann.train_sbaf_nn_lib import train_network
-from sbafs_ann.read_matchup_data_lib import (get_merged_matchups_for_files,
+from sbafs_ann.read_matchup_data_lib import (read_and_cut_matchupdata,
+                                             #get_merged_matchups_for_files,
                                              get_merged_matchups_for_files_seviri_fci,                                             
                                              cut_matched_data_according_to_use)
 from sbafs_ann import __version__
@@ -162,7 +163,7 @@ def select_training_data(cfg, viirs, n19, update_37=False):
     cut_matched_data_according_to_use(cfg, n19, viirs, use)
 
     
-def create_training_data(cfg, viirs, n19, thin=False, update_37=False, n_obs_to_use_per_var=100000):
+def create_training_data(cfg, viirs, n19, thin=False, n_obs_to_use_per_var=100000):
     n_obs = len(n19.channels["ch_tb11"])
     Xdata = np.empty((n_obs, len(cfg.channel_list)))
     n19_channels = [ch for ch in n19.channels if ch in cfg.channel_list]
@@ -261,13 +262,13 @@ def read_nn_config(nn_cfg_file):
             nn_cfg[key] = None
     return nn_cfg
 
-def get_data_viirs_avhrr(cfg, files_train, files_valid):
+def get_data_viirs_avhrr(cfg, file_train, file_valid):
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
-    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
+    n19_obj_all, viirs_obj_all = read_and_cut_matchupdata(cfg, file_train)
     select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    n19_obj_all2, viirs_obj_all2 = get_merged_matchups_for_files(cfg, files_valid)
+    n19_obj_all2, viirs_obj_all2 = read_and_cut_matchupdata(cfg, file_valid)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
     calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
@@ -300,12 +301,12 @@ def get_data_seviri_fci(cfg, files_train, files_valid):
     viirs_obj_all2 = None
     return nn_cfg, Xtrain, ytrain, Xvalid, yvalid
     
-def train_network_for_files(cfg, files_train, files_valid):
+def train_network_for_files(cfg, file_train, file_valid):
 
     if "viirs" in files_train[0]:
-        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_viirs_avhrr(cfg, files_train, files_valid)
+        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_viirs_avhrr(cfg, file_train, file_valid)
     else:    
-        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_seviri_fci(cfg, files_train, files_valid)
+        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_seviri_fci(cfg, file_train, file_valid)
     
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 

@@ -28,6 +28,7 @@ import resource
 import os
 import h5py
 import time
+from sbafs_ann.utils import Lvl1Obj, cut_matched_data_according_to_cfg
 
 FCI_DICT = {
     #"ch_r04": "fci_vis_04",
@@ -68,8 +69,6 @@ SEVIRI_DICT = {
 }
 
 
-
-
 def get_merged_matchups_for_files(cfg, files, write=False):
     n19_obj_all = Lvl1cObj(cfg)
     viirs_obj_all = Lvl1cObj(cfg)
@@ -78,7 +77,7 @@ def get_merged_matchups_for_files(cfg, files, write=False):
         tic_i = time.time()
         print("Memory usage {:3.1f}, reading {:s}".format(
             resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024), filename))
-        n19_obj, viirs_obj = read_matchupdata(cfg, filename)
+        n19_obj, viirs_obj = read_matchupdata_and_cut(cfg, filename)
         print("Reading one file took: {:3.1f} seconds".format(time.time() - tic_i))
         viirs_obj_all += viirs_obj
         n19_obj_all += n19_obj
@@ -93,6 +92,10 @@ def get_merged_matchups_for_files(cfg, files, write=False):
             n19_obj_all, viirs_obj_all)
     return n19_obj_all, viirs_obj_all
 
+def read_and_cut_matchupdata(cfg, filename):
+    n19_obj, viirs_obj = read_matchupdata(cfg, filename)
+    cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj)
+    return n19_obj, viirs_obj
 
 def read_matchupdata(cfg, filename):
     n19_obj = Lvl1cObj(cfg)
@@ -111,7 +114,6 @@ def read_matchupdata(cfg, filename):
                     n19_obj.channels[channel], mask=n19_obj.channels[channel] < 0)
         viirs_obj.data["abs_time_diff_s"] = match_fh["abs_time_diff_s"][...]
         viirs_obj.data["distance_between_pixels_m"] = match_fh["distance_between_pixels_m"][...]
-    cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj)
     return n19_obj, viirs_obj
 
 def get_merged_matchups_for_files_seviri_fci(cfg, files, write=False):
