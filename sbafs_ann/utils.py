@@ -102,52 +102,9 @@ def thin_training_data_1d(cfg, Xdata, Ydata, n_obs_to_use_per_var=100000):
     return Xdata[selected, :], Ydata[selected, :]
 
 
-def thin_training_data_2d(cfg, Xdata, Ydata):
-    index = np.arange(Xdata.shape[0])
-    selected = np.zeros(index.shape).astype(bool)
-    nbins = 10
-    np.random.seed(1)
-    n_obs_to_use = (Xdata.shape[1]) * 100000
-    ind_only_x = list(range(Ydata.shape[1], Xdata.shape[1]))
-    for ind in range(Ydata.shape[1]):
-        vary = Ydata[:, ind]
-        varx = Xdata[:, ind]
-        minv = min(varx) + min(vary)
-        maxv = max(varx) + max(vary)
-        bins = np.linspace(minv, maxv + 0.001, endpoint=True, num=nbins)
-        for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(vary >= bins[bin_i] - varx, vary < bins[bin_i+1]) - varx,
-                                 ~selected)
-            try:
-                selection_i = np.random.choice(index[use], size=10000, replace=False)
-            except:
-                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
-                selection_i = index[use]
-            selected[selection_i] = True
-    for ind in ind_only_x:
-        var = Xdata[:, ind]
-        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num=nbins)
-        for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
-            try:
-                selection_i = np.random.choice(index[use], size=10000, replace=False)
-            except:
-                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
-                selection_i = index[use]
-            selected[selection_i] = True
-    use = ~selected
-    print(np.sum(selected))
-    selection_i = np.random.choice(index[use], size=n_obs_to_use - np.sum(selected), replace=False)
-    selected[selection_i] = True
-    return Xdata[selected, :], Ydata[selected, :]
-
-
-def thin_training_data(cfg, Xdata, Ydata, thin="2D", n_obs_to_use_per_var=100000):
+def thin_training_data(cfg, Xdata, Ydata,n_obs_to_use_per_var=100000):
     print(Xdata.shape)
-    if thin == "2D":
-        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata)
-    elif thin == "1D":
-        Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata, n_obs_to_use_per_var=n_obs_to_use_per_var)
+    Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata, n_obs_to_use_per_var=n_obs_to_use_per_var)
     print(Xdata.shape)
     return Xdata, Ydata
 

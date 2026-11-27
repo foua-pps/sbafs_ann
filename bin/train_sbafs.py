@@ -49,9 +49,6 @@ if __name__ == "__main__":
     parser.add_argument('--max_distance_between_pixels_m', type=int, nargs='?',
                         required=False, default=3000,
                         help="Allowd max distance (m)")
-    parser.add_argument('--thinning_method_2D', const=True, nargs='?',
-                        required=False,
-                        help="Use 2D thinning of data for training")
     parser.add_argument('-o', '--output_dir', type=str, nargs='?',
                         required=False, default='.',
                         help="Output directory where to store the train network files")
@@ -86,8 +83,4 @@ if __name__ == "__main__":
         raise ValueError("Missing training or/and validation files!")
     if len(files_train)>1 or len(files_valid)>1:
         raise ValueError("Too many training or/and validation files!")
-    options.thin = "1D"
-    if options.thinning_method_2D:
-        options.thin = "2D"
-    
     train_network_for_files(options, files_train[0], files_valid[0])
