@@ -64,21 +64,16 @@ if __name__ == "__main__":
     parser.add_argument('--use_channel_quotas', type=bool, nargs='?',
                         required=False, default=True,
                         help="Use channel quotas")
-    parser.add_argument('--imager1', type=str, nargs='?',
+    parser.add_argument('--daytime', type=str, nargs='?',
+                        required=False, default="day",
+                        help="type_of_files")
+    parser.add_argument('--target_instrument', type=str, nargs='?',
                         required=False, default="avhrr",
-                        help="Imager 1")
-    parser.add_argument('--imager2', type=str, nargs='?',
-                        required=False, default="virrs",
-                        help="Imager 2")  
-              
+                        help="type_of_files")
+    
     options = parser.parse_args()
-    files_train = glob.glob(f"{options.train_dir}/merged_matchup_data_*train*.h5")
-    files_valid = glob.glob(f"{options.valid_dir}/merged_matchup_data_*valid*.h5")
-    if len(files_train)!=1 or len(files_valid)!=1:
-        print("Not using merged match up data, more or less than 1 file!")
-        files_train = glob.glob(f"{options.train_dir}/{options.imager1}_{options.imager2}*.nc")
-        files_valid = glob.glob(f"{options.valid_dir}/{options.imager1}_{options.imager2}*.nc")
-        print(f"{options.valid_dir}/{options.imager1}_{options.imager2}*.nc")
+    files_train = glob.glob(f"{options.train_dir}/merged_matchup_{options.daytime}*.h5")
+    files_valid = glob.glob(f"{options.valid_dir}/merged_matchup_{options.daytime}*.h5")
     if len(files_train)<1 or len(files_valid)<1:
         raise ValueError("Missing training or/and validation files!")
     if len(files_train)>1 or len(files_valid)>1:

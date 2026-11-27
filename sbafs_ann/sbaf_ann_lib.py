@@ -25,16 +25,14 @@ from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 from sbafs_ann.train_sbaf_nn_lib import train_network
-from sbafs_ann.read_matchup_data_lib import (read_and_cut_matchupdata,
-                                             #get_merged_matchups_for_files,
-                                             get_merged_matchups_for_files_seviri_fci,                                             
-                                             cut_matched_data_according_to_use)
+from sbafs_ann.read_matchup_data_lib import read_and_cut_matchupdata
+
 from sbafs_ann import __version__
 import datetime
 import resource
 import os
 from sbafs_ann.train_sbaf_nn_lib import apply_network
-from sbafs_ann.utils import thin_training_data
+from sbafs_ann.utils import thin_training_data, remove_matched_nodata
 
 PPS_SEVIRI = {
     "ch_r06": "VIS006",
@@ -123,25 +121,6 @@ def warn_get_data_to_use_cfg(cfg, viirs, n19):
         print("You might need to rerun matchup data!")
 
 
-def get_data_to_use(cfg, viirs, n19):
-    mask = np.logical_or(
-        n19.channels["ch_tb11"].mask, viirs.channels["ch_tb11"].mask)
-    for channel in cfg.channel_list:
-        if channel in n19.channels:
-            mask = np.logical_or(mask, n19.channels[channel].mask)
-        mask = np.logical_or(mask, viirs.channels[channel].mask)
-    use = ~mask
-    use[viirs.data["abs_time_diff_s"] > cfg.accept_time_diff] = False
-    use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
-    use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
-    use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
-    return use
-
-
 
 def calculate_best_linear_fit(cfg, n19, viirs):
     """Print the best linear fit for the training data to file."""
@@ -155,15 +134,15 @@ def calculate_best_linear_fit(cfg, n19, viirs):
         yaml.dump(linear_fit, linear_file)
 
 def select_training_data(cfg, viirs, n19, update_37=False):
+    """Update 3.7µm and remove nodata after that."""
     get_missing_37_from_viirs(viirs, n19)
     if update_37:
         get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
-    use = get_data_to_use(cfg, viirs, n19)
-    cut_matched_data_according_to_use(cfg, n19, viirs, use)
+    remove_matched_nodata(cfg, n19, viirs)
 
     
-def create_training_data(cfg, viirs, n19, thin=False, n_obs_to_use_per_var=100000):
+def create_training_data(cfg, viirs, n19, n_obs_to_use_per_var=100000):
     n_obs = len(n19.channels["ch_tb11"])
     Xdata = np.empty((n_obs, len(cfg.channel_list)))
     n19_channels = [ch for ch in n19.channels if ch in cfg.channel_list]
@@ -180,7 +159,7 @@ def create_training_data(cfg, viirs, n19, thin=False, n_obs_to_use_per_var=10000
             Xdata[:, ind] = Xdata[:, ind]/viirs.channels["ch_r06"]
             if channel in n19.channels:
                 Ydata[:, ind] = Ydata[:, ind] / n19.channels["ch_r06"]
-    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, thin, n_obs_to_use_per_var=n_obs_to_use_per_var)
+    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, n_obs_to_use_per_var=n_obs_to_use_per_var)
     return (Xdata, Ydata)
 
 
@@ -195,17 +174,17 @@ def get_nn_name_from_cfg(cfg):
         now)
 
 def get_channel_names(cfg, instrument="viirs"):
-    if instrument == "viirs":
+    if instrument == "avhrr":
         mband_list = [PPS_MBAND[channel] for channel in cfg.channel_list]
         mband_list_out = [PPS_MBAND[channel] for channel in cfg.channel_list if channel in NOAA19_CHANNELS]  
-    elif instrument == "fci":
+    elif instrument == "seviri":
         mband_list = [PPS_FCI[channel] for channel in cfg.channel_list]
         mband_list_out = [PPS_FCI[channel] for channel in cfg.channel_list if channel in SEVIRI_CHANNELS]  
     return mband_list, mband_list_out
 
 def set_up_nn_file_names(cfg, nn_dir):
     nn_pattern = get_nn_name_from_cfg(cfg)
-    mband_list, mband_list_out = get_channel_names(cfg, instrument=cfg.imager2)
+    mband_list, mband_list_out = get_channel_names(cfg, instrument=cfg.target_instrument)
     nn_cfg = {
         "nn_pattern": nn_pattern,
         "coeff_file": "{:s}/{:s}.keras".format(nn_dir, nn_pattern),
@@ -262,18 +241,21 @@ def read_nn_config(nn_cfg_file):
             nn_cfg[key] = None
     return nn_cfg
 
-def get_data_viirs_avhrr(cfg, file_train, file_valid):
+def get_data(cfg, file_train, file_valid):
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
     n19_obj_all, viirs_obj_all = read_and_cut_matchupdata(cfg, file_train)
-    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
+    update_37 = False
+    if n19_obj_all.target_instrument =="avhrr":
+        update_37=True
+    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=update_37)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     n19_obj_all2, viirs_obj_all2 = read_and_cut_matchupdata(cfg, file_valid)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
+    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=update_37)
     calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
-    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=cfg.thin)  
-    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2, thin=cfg.thin) 
+    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all)  
+    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2)#, 10000)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     n19_obj_all = None
     viirs_obj_all = None
@@ -282,32 +264,11 @@ def get_data_viirs_avhrr(cfg, file_train, file_valid):
     return nn_cfg, Xtrain, ytrain, Xvalid, yvalid
 
 
-def get_data_seviri_fci(cfg, files_train, files_valid):
-    nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
-    update_cfg_with_nn_cfg(cfg, nn_cfg)
-    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files_seviri_fci(cfg, files_train)
-    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
-    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    n19_obj_all2, viirs_obj_all2 = get_merged_matchups_for_files_seviri_fci(cfg, files_valid)
-    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=False)
-    calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
-    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=cfg.thin, n_obs_to_use_per_var=20000)  
-    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2, thin=cfg.thin, n_obs_to_use_per_var=20000) 
-    print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    n19_obj_all = None
-    viirs_obj_all = None
-    n19_obj_all2 = None
-    viirs_obj_all2 = None
-    return nn_cfg, Xtrain, ytrain, Xvalid, yvalid
+
     
 def train_network_for_files(cfg, file_train, file_valid):
 
-    if "viirs" in files_train[0]:
-        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_viirs_avhrr(cfg, file_train, file_valid)
-    else:    
-        nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data_seviri_fci(cfg, file_train, file_valid)
-    
+    nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data(cfg, file_train, file_valid)    
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 

@@ -21,38 +21,40 @@ import numpy as np
 import os
 from sbafs_ann.train_sbaf_nn_lib import apply_network
 from sbafs_ann.sbaf_ann_lib import read_nn_config
-from convert_vgac import get_error_estimate
+from sbafs_ann.convert_vgac import get_error_estimate
 
 
 def reorganize_data(cfg, scene):
     """Reorganize data to apply network."""
-    Xdata = np.empty((np.size(scene["M15"]), len(cfg["channel_list_mband"])))
+    Xdata = np.empty((np.size(scene["ir_105"]), len(cfg["channel_list_mband"])))
     for ind, channel in enumerate(cfg["channel_list_mband"]):
         Xdata[:, ind] = np.copy(scene[channel].values.ravel())
-        if channel in ["M16", "M12"]:
-            Xdata[:, ind] -= np.copy(scene["M15"].values.ravel())
-        if channel in ["M07", "M10"] and cfg["use_channel_quotas"]:
-            Xdata[:, ind] = Xdata[:, ind]/np.copy(scene["M05"].values.ravel())
+        if channel in ["ir_38", "ir_123"]:
+            Xdata[:, ind] -= np.copy(scene["ir_105"].values.ravel())
+        if channel in ["vis_08", "vis_16"] and cfg["use_channel_quotas"]:
+            Xdata[:, ind] = Xdata[:, ind]/np.copy(scene["vis_06"].values.ravel())
     return Xdata
 
 
 def rearrange_ydata(cfg, val):
     """For channel 12 and 3.7 data is trained with differences to 11µm."""
-    ind_m15 = cfg["channel_list_mband_out"].index("M15")
+    ind_m15 = cfg["channel_list_mband_out"].index("ir_105")
     for ind, channel in enumerate(cfg["channel_list_mband_out"]):
-        if channel in ["M16", "M12"]:
+        if channel in ["ir_38", "ri_123"]:
             val[:, ind, :] += val[:, ind_m15, :]
-        if channel in ["M07"] and cfg["use_channel_quotas"]:
-            ind_m05 = cfg["channel_list_mband_out"].index("M05")
+        if channel in ["vis_08", "nit_16"] and cfg["use_channel_quotas"]:
+            ind_m05 = cfg["channel_list_mband_out"].index("vis_06")
             val[:, ind] *=  val[:, ind_m05, :]
 
 
-def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
+def convert_to_seviri_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_file=None):
     """Apply NN SBAFS to scene."""
 
     DATADIR = os.path.join(os.path.dirname(__file__), 'data')
     day_cfg_file = os.path.join(DATADIR, os.path.basename(day_cfg_file))
     night_cfg_file = os.path.join(DATADIR, os.path.basename(night_cfg_file))
+
+    import pdb;pdb.set_trace()
 
     day_cfg = read_nn_config(day_cfg_file)
     Xdata = reorganize_data(day_cfg, scene)
@@ -74,7 +76,7 @@ def convert_to_vgac_with_nn(scene, day_cfg_file, night_cfg_file, twilight_cfg_fi
     night = scene["sunzenith"].values >= 88
     twilight = np.logical_and(scene["sunzenith"].values < 95, scene["sunzenith"].values > 80)
 
-    ch_size = scene["M15"].values.shape
+    ch_size = scene["ir_105"].values.shape
     for ind, channel in enumerate(day_cfg["channel_list_mband_out"]):
         scene[channel].values = day_val[:, ind, 1].reshape(ch_size)
         scene[channel + "_err"] = scene[channel].copy()

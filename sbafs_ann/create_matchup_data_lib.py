@@ -29,7 +29,45 @@ import os
 import h5py
 import time
 COMPRESS_LVL = 6
-from sbafs_ann.read_matchup_data_lib import  cut_matched_data_according_to_cfg, Lvl1cObj
+from sbafs_ann.utils import  cut_matched_data_according_to_cfg, Lvl1cObj, remove_matched_nodata
+
+FCI_DICT = {
+    #"ch_r04": "fci_vis_04",
+    #"ch_r05": "fci_vis_05",
+    "ch_r06": "fci_vis_06",
+    "ch_r09": "fci_vis_08",
+    #"ch_rx09": "fci_vis_09",
+    "ch_r13": "fci_nir_13",
+    "ch_r16": "fci_nir_16",
+    "ch_r22": "fci_nir_22",
+    "ch_tb67": "fci_wv_63",
+    "ch_tb73": "fci_wv_73",
+    "ch_tb11": "fci_ir_105",
+    "ch_tb12": "fci_ir_123",
+    "ch_tb133": "fci_ir_133",
+    "ch_tb37": "fci_ir_38",
+    "ch_tb85": "fci_ir_87",
+    "ch_tb97": "fci_ir_97",
+    "sunzenith": "seviri_satellite_azimuth_angle",
+    "satzenith": "fci_satellite_zenith_angle",
+    }
+SEVIRI_DICT = {
+    "ch_r06": "seviri_VIS006",
+    "ch_r09": "seviri_VIS008",
+    "ch_tb67": "seviri_WV_062",
+    "ch_tb73": "seviri_WV_073",
+    "ch_r16": "seviri_IR_016",
+    "ch_tb37": "seviri_IR_039",
+    "ch_tb85": "seviri_IR_087",
+    "ch_tb97": "seviri_IR_097",
+    "ch_tb11": "seviri_IR_108",
+    "ch_tb12": "seviri_IR_120",
+    "ch_tb133": "seviri_IR_134",
+    "sunzenith": "seviri_satellite_azimuth_angle",
+    "satzenith": "seviri_satellite_zenith_angle",
+    #"sun": "seviri_solar_azimuth_angle",
+    #"satzenith": "seviri_solar_zenith_angle",
+}
 
 
 
@@ -388,29 +426,62 @@ def merge_matchup_data_for_files(cfg, n19_files, npp_files):
     return n19_obj_all, viirs_obj_all
 
 
-def write_matchupdata(filename, n19_obj, viirs_obj):
+def write_matchupdata(filename, target_obj, input_obj):
 
     with h5py.File(filename, 'w') as f:
-        for name in viirs_obj.channel_list:
+        f.attrs["target_instrument"] = target_obj.target_instrument
+        f.attrs["input_instrument"] = target_obj.input_instrument        
+        for name in input_obj.channel_list:
             print(name)
-            f.create_dataset("viirs_{:s}".format(name), data=viirs_obj.channels[name],
-                             compression=COMPRESS_LVL)
-            if name in n19_obj.channels and n19_obj.channels[name] is not None:
-                f.create_dataset("avhrr_{:s}".format(name), data=n19_obj.channels[name],
-                                 compression=COMPRESS_LVL)
+            var_name = f"{target_obj.input_instrument}_{name}"
+            f.create_dataset(var_name, data=input_obj.channels[name], compression=COMPRESS_LVL)
+            if name in target_obj.channels and target_obj.channels[name] is not None:
+                var_name = f"{target_obj.target_instrument}_{name}"
+                f.create_dataset(var_name, data=target_obj.channels[name], compression=COMPRESS_LVL)
         for varname in ["abs_time_diff_s", "distance_between_pixels_m"]:
-            f.create_dataset(varname, data=viirs_obj.data[varname],
+            if varname in input_obj.data:
+                f.create_dataset(varname, data=input_obj.data[varname],
+                                 compression=COMPRESS_LVL)
+        if hasattr(target_obj, "lat") and target_obj.lat is not None:
+            f.create_dataset("avhrr_lat", data=target_obj.lat,
                              compression=COMPRESS_LVL)
-        if n19_obj.lat is not None:
-            f.create_dataset("avhrr_lat", data=n19_obj.lat,
+            f.create_dataset("avhrr_lon", data=target_obj.lon,
                              compression=COMPRESS_LVL)
-            f.create_dataset("avhrr_lon", data=n19_obj.lon,
+            f.create_dataset("input_lat", data=input_obj.lat,
                              compression=COMPRESS_LVL)
-            f.create_dataset("viirs_lat", data=viirs_obj.lat,
-                             compression=COMPRESS_LVL)
-            f.create_dataset("viirs_lon", data=viirs_obj.lon,
+            f.create_dataset("input_lon", data=input_obj.lon,
                              compression=COMPRESS_LVL)
 
+def convert_and_save_matchupdata_seviri(cfg, files, daytime="day"):
+    for filename in files:
+        seviri_obj, fci_obj = read_matchupdata_seviri_nc(cfg, filename)
+        remove_matched_nodata(cfg, seviri_obj, fci_obj)
+        #thin_matchupdata_seviri(seviri_obj, fci_obj)
+        sub_dir = filename.split("/")[-2]
+        fout = f"{os.path.dirname(filename)}/matchup_{daytime}_{os.path.basename(filename)}.h5".replace(".nc","")
+        print(f"Writing file {fout}")
+        write_matchupdata(fout, seviri_obj, fci_obj)
+
+            
+def read_matchupdata_seviri_nc(cfg, filename):
+    seviri_obj = Lvl1cObj(cfg, instrument="seviri")
+    fci_obj = Lvl1cObj(cfg, instrument="seviri")
+
+    seviri_var_list = [channel for channel in list(seviri_obj.channels.keys())
+                       if channel in cfg.channel_list] + ["sunzenith", "satzenith"]
+    with netCDF4.Dataset(filename, 'r', format='NETCDF4') as match_fh:
+        for channel in cfg.channel_list + ["sunzenith", "satzenith"]:
+            fci_obj.channels[channel] = match_fh[FCI_DICT[channel]][:,:].ravel()
+            fci_obj.channels[channel] = np.ma.masked_array(
+                fci_obj.channels[channel], mask=fci_obj.channels[channel] < 0)
+            if channel in seviri_var_list:
+                seviri_obj.channels[channel] = match_fh[SEVIRI_DICT[channel]][:,:].ravel()
+                seviri_obj.channels[channel] = np.ma.masked_array(
+                    seviri_obj.channels[channel], mask=seviri_obj.channels[channel] < 0)
+        fci_obj.data["abs_time_diff_s"] = np.zeros(fci_obj.channels[channel].shape)
+        fci_obj.data["distance_between_pixels_m"] = np.zeros(fci_obj.channels[channel].shape)
+    cut_matched_data_according_to_cfg(cfg, seviri_obj, fci_obj)
+    return seviri_obj, fci_obj
 
 if __name__ == '__main__':
     pass
