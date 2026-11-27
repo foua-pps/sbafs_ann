@@ -25,15 +25,47 @@ from pyresample.geometry import SwathDefinition
 from pyresample.kd_tree import get_neighbour_info
 from pyresample.kd_tree import get_sample_from_neighbour_info
 from sbafs_ann.train_sbaf_nn_lib import train_network
-from sbafs_ann.create_matchup_data_lib import (get_merged_matchups_for_files,
-                                               cut_matched_data_according_to_use)
+from sbafs_ann.read_matchup_data_lib import read_and_cut_matchupdata
+
 from sbafs_ann import __version__
 import datetime
 import resource
 import os
 from sbafs_ann.train_sbaf_nn_lib import apply_network
-from sbafs_ann.create_matchup_data_lib import merge_matchup_data_for_files, Lvl1cObj
+from sbafs_ann.utils import thin_training_data, remove_matched_nodata
 
+PPS_SEVIRI = {
+    "ch_r06": "VIS006",
+    "ch_r09": "VIS008",
+    "ch_tb67": "WV_062",
+    "ch_tb73": "WV_073",
+    "ch_r16": "IR_016",
+    "ch_tb37": "IR_039",
+    "ch_tb85": "IR_087",
+    "ch_tb97": "IR_097",
+    "ch_tb11": "IR_108",
+    "ch_tb12": "IR_120",
+    "ch_tb133": "IR_134",
+    }
+
+PPS_FCI = {
+    #"ch_r04": "vis_04",
+    #"ch_r05": "vis_05",
+    "ch_r06": "vis_06",
+    "ch_r09": "vis_08",
+    #"ch_rx09": "vis_09",
+    "ch_r13": "nir_13",
+    "ch_r16": "nir_16",
+    "ch_r22": "nir_22",
+    "ch_tb67": "wv_63",
+    "ch_tb73": "wv_73",
+    "ch_tb11": "ir_105",
+    "ch_tb12": "ir_123",
+    "ch_tb133": "ir_133",
+    "ch_tb37": "ir_38",
+    "ch_tb85": "ir_87",
+    "ch_tb97": "ir_97",
+    }
 
 PPS_MBAND = {"ch_r06": "M05",
              "ch_r09": "M07",
@@ -44,6 +76,7 @@ PPS_MBAND = {"ch_r06": "M05",
              "ch_tb11": "M15",
              "ch_tb12": "M16"}
 NOAA19_CHANNELS = ["ch_r06", "ch_r09", "ch_tb11", "ch_tb12", "ch_tb37"]
+SEVIRI_CHANNELS = ["ch_r06", "ch_r09", "ch_tb11", "ch_tb12", "ch_tb37", "ch_tb133", "ch_tb97", "ch_tb67", "ch_tb73", "ch_tb85", "ch_r16"]
 
 
 def get_missing_37_from_viirs(viirs, n19):
@@ -88,97 +121,6 @@ def warn_get_data_to_use_cfg(cfg, viirs, n19):
         print("You might need to rerun matchup data!")
 
 
-def get_data_to_use(cfg, viirs, n19):
-    mask = np.logical_or(
-        n19.channels["ch_tb11"].mask, viirs.channels["ch_tb11"].mask)
-    for channel in cfg.channel_list:
-        if channel in n19.channels:
-            mask = np.logical_or(mask, n19.channels[channel].mask)
-        mask = np.logical_or(mask, viirs.channels[channel].mask)
-    use = ~mask
-    use[viirs.data["abs_time_diff_s"] > cfg.accept_time_diff] = False
-    use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
-    use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
-    use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
-    return use
-
-
-def thin_training_data_1d(cfg, Xdata, Ydata):
-    index = np.arange(Xdata.shape[0])
-    selected = np.zeros(index.shape).astype(bool)
-    nbins = 10
-    np.random.seed(1)
-    N_obs_to_use = (Xdata.shape[1]) * 100000
-    for ind in range(Xdata.shape[1]):
-        var = Xdata[:, ind]
-        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num=nbins)
-        for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
-            try:
-                selection_i = np.random.choice(index[use], size=10000, replace=False)
-            except:
-                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
-                selection_i = index[use]
-            selected[selection_i] = True
-    use = ~selected
-    selection_i = np.random.choice(index[use], size=N_obs_to_use - np.sum(selected), replace=False)
-    selected[selection_i] = True
-    return Xdata[selected, :], Ydata[selected, :]
-
-
-def thin_training_data_2d(cfg, Xdata, Ydata):
-    index = np.arange(Xdata.shape[0])
-    selected = np.zeros(index.shape).astype(bool)
-    nbins = 10
-    np.random.seed(1)
-    N_obs_to_use = (Xdata.shape[1]) * 100000
-    ind_only_x = list(range(Ydata.shape[1], Xdata.shape[1]))
-    for ind in range(Ydata.shape[1]):
-        vary = Ydata[:, ind]
-        varx = Xdata[:, ind]
-        minv = min(varx) + min(vary)
-        maxv = max(varx) + max(vary)
-        bins = np.linspace(minv, maxv + 0.001, endpoint=True, num=nbins)
-        for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(vary >= bins[bin_i] - varx, vary < bins[bin_i+1]) - varx,
-                                 ~selected)
-            try:
-                selection_i = np.random.choice(index[use], size=10000, replace=False)
-            except:
-                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
-                selection_i = index[use]
-            selected[selection_i] = True
-    for ind in ind_only_x:
-        var = Xdata[:, ind]
-        bins = np.linspace(min(var), max(var) + 0.001, endpoint=True, num=nbins)
-        for bin_i in range(nbins-1):
-            use = np.logical_and(np.logical_and(var >= bins[bin_i], var < bins[bin_i+1]), ~selected)
-            try:
-                selection_i = np.random.choice(index[use], size=10000, replace=False)
-            except:
-                print("only selecting {:d}, ind {:d}, bin_i {:}".format(np.sum(use), ind, bin_i))
-                selection_i = index[use]
-            selected[selection_i] = True
-    use = ~selected
-    print(np.sum(selected))
-    selection_i = np.random.choice(index[use], size=N_obs_to_use - np.sum(selected), replace=False)
-    selected[selection_i] = True
-    return Xdata[selected, :], Ydata[selected, :]
-
-
-def thin_training_data(cfg, Xdata, Ydata, thin="2D"):
-    print(Xdata.shape)
-    if thin == "2D":
-        Xdata, Ydata = thin_training_data_2d(cfg, Xdata, Ydata)
-    elif thin == "1D":
-        Xdata, Ydata = thin_training_data_1d(cfg, Xdata, Ydata)
-    print(Xdata.shape)
-    return Xdata, Ydata
-
 
 def calculate_best_linear_fit(cfg, n19, viirs):
     """Print the best linear fit for the training data to file."""
@@ -192,15 +134,15 @@ def calculate_best_linear_fit(cfg, n19, viirs):
         yaml.dump(linear_fit, linear_file)
 
 def select_training_data(cfg, viirs, n19, update_37=False):
+    """Update 3.7µm and remove nodata after that."""
     get_missing_37_from_viirs(viirs, n19)
     if update_37:
         get_cold_37_from_viirs(viirs, n19)
     warn_get_data_to_use_cfg(cfg, viirs, n19)
-    use = get_data_to_use(cfg, viirs, n19)
-    cut_matched_data_according_to_use(cfg, n19, viirs, use)
+    remove_matched_nodata(cfg, n19, viirs)
 
     
-def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
+def create_training_data(cfg, viirs, n19, n_obs_to_use_per_var=100000):
     n_obs = len(n19.channels["ch_tb11"])
     Xdata = np.empty((n_obs, len(cfg.channel_list)))
     n19_channels = [ch for ch in n19.channels if ch in cfg.channel_list]
@@ -217,7 +159,7 @@ def create_training_data(cfg, viirs, n19, thin=False, update_37=False):
             Xdata[:, ind] = Xdata[:, ind]/viirs.channels["ch_r06"]
             if channel in n19.channels:
                 Ydata[:, ind] = Ydata[:, ind] / n19.channels["ch_r06"]
-    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, thin)
+    Xdata, Ydata = thin_training_data(cfg, Xdata, Ydata, n_obs_to_use_per_var=n_obs_to_use_per_var)
     return (Xdata, Ydata)
 
 
@@ -231,11 +173,18 @@ def get_nn_name_from_cfg(cfg):
         cfg.accept_time_diff,
         now)
 
+def get_channel_names(cfg, instrument="viirs"):
+    if instrument == "avhrr":
+        mband_list = [PPS_MBAND[channel] for channel in cfg.channel_list]
+        mband_list_out = [PPS_MBAND[channel] for channel in cfg.channel_list if channel in NOAA19_CHANNELS]  
+    elif instrument == "seviri":
+        mband_list = [PPS_FCI[channel] for channel in cfg.channel_list]
+        mband_list_out = [PPS_FCI[channel] for channel in cfg.channel_list if channel in SEVIRI_CHANNELS]  
+    return mband_list, mband_list_out
 
 def set_up_nn_file_names(cfg, nn_dir):
     nn_pattern = get_nn_name_from_cfg(cfg)
-    mband_list = [PPS_MBAND[channel] for channel in cfg.channel_list]
-    mband_list_out = [PPS_MBAND[channel] for channel in cfg.channel_list if channel in NOAA19_CHANNELS]
+    mband_list, mband_list_out = get_channel_names(cfg, instrument=cfg.target_instrument)
     nn_cfg = {
         "nn_pattern": nn_pattern,
         "coeff_file": "{:s}/{:s}.keras".format(nn_dir, nn_pattern),
@@ -292,28 +241,34 @@ def read_nn_config(nn_cfg_file):
             nn_cfg[key] = None
     return nn_cfg
 
-    
-def train_network_for_files(cfg, files_train, files_valid):
+def get_data(cfg, file_train, file_valid):
     nn_cfg = set_up_nn_file_names(cfg, cfg.output_dir)
     update_cfg_with_nn_cfg(cfg, nn_cfg)
-    n19_obj_all, viirs_obj_all = get_merged_matchups_for_files(cfg, files_train)
-    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
+    n19_obj_all, viirs_obj_all = read_and_cut_matchupdata(cfg, file_train)
+    update_37 = False
+    if n19_obj_all.target_instrument =="avhrr":
+        update_37=True
+    select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=update_37)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    n19_obj_all2, viirs_obj_all2 = get_merged_matchups_for_files(cfg, files_valid)
+    n19_obj_all2, viirs_obj_all2 = read_and_cut_matchupdata(cfg, file_valid)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
-    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
+    select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=update_37)
     calculate_best_linear_fit(cfg, n19_obj_all + n19_obj_all2, viirs_obj_all + viirs_obj_all2)
-
-    # It 3.7µm not updated for linear fit, update it now
-    # select_training_data(cfg, viirs_obj_all, n19_obj_all, update_37=True)
-    # select_training_data(cfg, viirs_obj_all2, n19_obj_all2, update_37=True)
-    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all, thin=cfg.thin)  
-    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2, thin=cfg.thin) 
+    Xtrain, ytrain = create_training_data(cfg, viirs_obj_all, n19_obj_all)  
+    Xvalid, yvalid = create_training_data(cfg, viirs_obj_all2, n19_obj_all2)#, 10000)
     print("Memory usage {:3.1f}".format(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024)))
     n19_obj_all = None
     viirs_obj_all = None
     n19_obj_all2 = None
-    viirs_obj_all2 = None  
+    viirs_obj_all2 = None
+    return nn_cfg, Xtrain, ytrain, Xvalid, yvalid
+
+
+
+    
+def train_network_for_files(cfg, file_train, file_valid):
+
+    nn_cfg, Xtrain, ytrain, Xvalid, yvalid = get_data(cfg, file_train, file_valid)    
     train_network(nn_cfg, Xtrain, ytrain, Xvalid, yvalid)
 
 

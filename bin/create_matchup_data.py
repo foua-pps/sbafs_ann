@@ -19,7 +19,8 @@
 
 import argparse
 import glob
-from sbafs_ann.create_matchup_data_lib import ConfigObj, create_matchup_data_for_files
+from sbafs_ann.create_matchup_data_lib import create_matchup_data_for_files
+from sbafs_ann.utils import DefaultAVHRRConfigObj
 
 if __name__ == "__main__":
     """ Train NN SBAF"""
@@ -34,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument('-o', '--output_dir', type=str, nargs='?',
                         required=False, default='.',
                         help="Output directory where to store the train network files")
-    cfg = ConfigObj()
+    cfg = DefaultAVHRRConfigObj()
     options = parser.parse_args()
     n19_files = glob.glob(
         "{:s}/S_NWC_avhrr_noaa19_*T*.nc".format(options.n19_dir))

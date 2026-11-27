@@ -19,8 +19,8 @@
 
 import argparse
 import glob
-from sbafs_ann.create_matchup_data_lib import (ConfigObj, get_merged_matchups_for_files)
-
+from sbafs_ann.read_matchup_data_lib import (get_merged_matchups_for_files)
+from sbafs_ann.utils import DefaultAVHRRConfigObj, DefaultSEVIRIConfigObj
 
 if __name__ == "__main__":
     """ Train NN SBAF"""
@@ -35,10 +35,21 @@ if __name__ == "__main__":
     parser.add_argument('--accept_time_diff', type=int, nargs='?',
                         required=False, default=120,
                         help="Allowd time difference in seconds")
-    cfg = ConfigObj()
+    parser.add_argument('--target_instrument', type=str, nargs='?',
+                        required=False, default="avhrr",
+                        help="Target instrument")
+    parser.add_argument('--daytime', type=str, nargs='?',
+                        required=False, default="daytime",
+                        help="Target instrument")  
     options = parser.parse_args()
+    if options.target_instrument == "avhrr":
+        cfg = DefaultAVHRRConfigObj()
+    else:
+        cfg = DefaultSEVIRIConfigObj()
+        if options.daytime == "night":
+            cfg.channel_list = cfg.channel_list_night
+
     cfg.accept_time_diff = options.accept_time_diff
     cfg.accept_satz_max = options.accept_satz_max
-    files = glob.glob(
-        "{:s}/matchup_avhrr_*_*viirs*.h5".format(options.match_dir))
+    files = glob.glob(f"{options.match_dir}/matchup_{options.daytime}_*{options.target_instrument}*.h5")
     get_merged_matchups_for_files(cfg, files, write=True)

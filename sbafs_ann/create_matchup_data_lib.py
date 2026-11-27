@@ -29,77 +29,46 @@ import os
 import h5py
 import time
 COMPRESS_LVL = 6
+from sbafs_ann.utils import  cut_matched_data_according_to_cfg, Lvl1cObj, remove_matched_nodata
 
+FCI_DICT = {
+    #"ch_r04": "fci_vis_04",
+    #"ch_r05": "fci_vis_05",
+    "ch_r06": "fci_vis_06",
+    "ch_r09": "fci_vis_08",
+    #"ch_rx09": "fci_vis_09",
+    "ch_r13": "fci_nir_13",
+    "ch_r16": "fci_nir_16",
+    "ch_r22": "fci_nir_22",
+    "ch_tb67": "fci_wv_63",
+    "ch_tb73": "fci_wv_73",
+    "ch_tb11": "fci_ir_105",
+    "ch_tb12": "fci_ir_123",
+    "ch_tb133": "fci_ir_133",
+    "ch_tb37": "fci_ir_38",
+    "ch_tb85": "fci_ir_87",
+    "ch_tb97": "fci_ir_97",
+    "sunzenith": "seviri_satellite_azimuth_angle",
+    "satzenith": "fci_satellite_zenith_angle",
+    }
+SEVIRI_DICT = {
+    "ch_r06": "seviri_VIS006",
+    "ch_r09": "seviri_VIS008",
+    "ch_tb67": "seviri_WV_062",
+    "ch_tb73": "seviri_WV_073",
+    "ch_r16": "seviri_IR_016",
+    "ch_tb37": "seviri_IR_039",
+    "ch_tb85": "seviri_IR_087",
+    "ch_tb97": "seviri_IR_097",
+    "ch_tb11": "seviri_IR_108",
+    "ch_tb12": "seviri_IR_120",
+    "ch_tb133": "seviri_IR_134",
+    "sunzenith": "seviri_satellite_azimuth_angle",
+    "satzenith": "seviri_satellite_zenith_angle",
+    #"sun": "seviri_solar_azimuth_angle",
+    #"satzenith": "seviri_solar_zenith_angle",
+}
 
-class ConfigObj(object):
-    """Object to hold config stuff."""
-
-    def __init__(self):
-        self.plotDir = None
-        self.accept_satz_max = 50
-        self.accept_sunz_max = 180
-        self.accept_sunz_min = 0
-        self.accept_time_diff = 300
-        self.max_distance_between_pixels_m = 3000
-        self.channel_list = ["ch_r06",
-                             "ch_r09",
-                             "ch_r16",
-                             "ch_tb11",
-                             "ch_tb12",
-                             "ch_tb37",
-                             "ch_tb85",
-                             "sunzenith",
-                             "satzenith"]
-
-
-class Lvl1cObj(object):
-    """Object to hold data."""
-
-    def __init__(self, cfg):
-        self.channel_list = cfg.channel_list
-        self.channels = {"ch_r06": None,
-                         "ch_r09": None,
-                         "ch_tb11": None,
-                         "ch_tb12": None,
-                         "ch_tb37": None}
-        self.data = {}
-        self.mask = None
-        self.lat = None
-        self.lon = None
-
-    def __add__(self, other):
-        """Adding two objects together"""
-        if self.channels["ch_tb11"] is None:
-            # print("Self is None")
-            return other
-        if other.channels["ch_tb11"] is None:
-            print("other is None")
-            return self
-        for channel in self.channels:
-            if self.channels[channel] is None:
-                self.channels[channel] = other.channels[channel]
-            elif other.channels[channel] is None:
-                continue
-            
-            self.channels[channel] = np.ma.concatenate(
-                [self.channels[channel], other.channels[channel]])
-            try:
-                self.channels[channel].mask[0]
-            except IndexError:
-                self.channels[channel].mask = np.zeros(
-                    self.channels[channel].shape).astype(bool)
-        for dataset in self.data:
-            self.data[dataset] = np.concatenate([self.data[dataset], other.data[dataset]])
-
-        try:
-            self.lat = np.concatenate([self.lat, other.lat])
-            self.lon = np.concatenate([self.lon, other.lon])
-        except BaseException:
-            self.lat = None
-            self.lon = None
-        if self.mask is not None:
-            self.mask = np.concatenate([self.mask, other.mask])
-        return self
 
 
 def get_sunz_correction(scene):  # , REFL_BANDS):
@@ -423,29 +392,6 @@ def get_matchups(cfg, n19f, viirsf):
     return n19_obj, rm_viirs_obj
 
 
-def get_merged_matchups_for_files(cfg, files, write=False):
-    n19_obj_all = Lvl1cObj(cfg)
-    viirs_obj_all = Lvl1cObj(cfg)
-    tic = time.time()
-    for filename in sorted(files):
-        tic_i = time.time()
-        print("Memory usage {:3.1f}, reading {:s}".format(
-            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/(1024*1024), filename))
-        n19_obj, viirs_obj = read_matchupdata(cfg, filename)
-        print("Reading one file took: {:3.1f} seconds".format(time.time() - tic_i))
-        viirs_obj_all += viirs_obj
-        n19_obj_all += n19_obj
-        print(n19_obj_all.channels["ch_tb11"].shape)
-        print("Merging one file took: {:3.1f} seconds".format(time.time() - tic_i))
-    print("Reading ALL files took: {:3.1f} seconds".format(time.time() - tic))
-    if write:
-        sub_dir = filename.split("/")[-2]
-        write_matchupdata(
-            "{:s}/merged_matchup_data_{:s}.h5".format(
-                os.path.dirname(filename), sub_dir.lower()),
-            n19_obj_all, viirs_obj_all)
-    return n19_obj_all, viirs_obj_all
-
 
 def create_matchup_data_for_files(cfg, n19_files, npp_files):
     counter = 0
@@ -480,82 +426,62 @@ def merge_matchup_data_for_files(cfg, n19_files, npp_files):
     return n19_obj_all, viirs_obj_all
 
 
-def get_data_to_use_cfg(cfg, n19, viirs):
-
-    use = viirs.data["abs_time_diff_s"] <= cfg.accept_time_diff
-    use[viirs.data["distance_between_pixels_m"] > cfg.max_distance_between_pixels_m] = False
-    use[viirs.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[viirs.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[viirs.channels["satzenith"] > cfg.accept_satz_max] = False
-    use[viirs.channels["satzenith"] < 0] = False
-    use[n19.channels["sunzenith"] > cfg.accept_sunz_max] = False
-    use[n19.channels["sunzenith"] < cfg.accept_sunz_min] = False
-    use[n19.channels["satzenith"] > cfg.accept_satz_max] = False
-    use[n19.channels["satzenith"] < 0] = False
-    return use
-
-
-def write_matchupdata(filename, n19_obj, viirs_obj):
+def write_matchupdata(filename, target_obj, input_obj):
 
     with h5py.File(filename, 'w') as f:
-        for name in viirs_obj.channel_list:
+        f.attrs["target_instrument"] = target_obj.target_instrument
+        f.attrs["input_instrument"] = target_obj.input_instrument        
+        for name in input_obj.channel_list:
             print(name)
-            f.create_dataset("viirs_{:s}".format(name), data=viirs_obj.channels[name],
-                             compression=COMPRESS_LVL)
-            if name in n19_obj.channels and n19_obj.channels[name] is not None:
-                f.create_dataset("avhrr_{:s}".format(name), data=n19_obj.channels[name],
-                                 compression=COMPRESS_LVL)
+            var_name = f"{target_obj.input_instrument}_{name}"
+            f.create_dataset(var_name, data=input_obj.channels[name], compression=COMPRESS_LVL)
+            if name in target_obj.channels and target_obj.channels[name] is not None:
+                var_name = f"{target_obj.target_instrument}_{name}"
+                f.create_dataset(var_name, data=target_obj.channels[name], compression=COMPRESS_LVL)
         for varname in ["abs_time_diff_s", "distance_between_pixels_m"]:
-            f.create_dataset(varname, data=viirs_obj.data[varname],
+            if varname in input_obj.data:
+                f.create_dataset(varname, data=input_obj.data[varname],
+                                 compression=COMPRESS_LVL)
+        if hasattr(target_obj, "lat") and target_obj.lat is not None:
+            f.create_dataset("avhrr_lat", data=target_obj.lat,
                              compression=COMPRESS_LVL)
-        if n19_obj.lat is not None:
-            f.create_dataset("avhrr_lat", data=n19_obj.lat,
+            f.create_dataset("avhrr_lon", data=target_obj.lon,
                              compression=COMPRESS_LVL)
-            f.create_dataset("avhrr_lon", data=n19_obj.lon,
+            f.create_dataset("input_lat", data=input_obj.lat,
                              compression=COMPRESS_LVL)
-            f.create_dataset("viirs_lat", data=viirs_obj.lat,
-                             compression=COMPRESS_LVL)
-            f.create_dataset("viirs_lon", data=viirs_obj.lon,
+            f.create_dataset("input_lon", data=input_obj.lon,
                              compression=COMPRESS_LVL)
 
+def convert_and_save_matchupdata_seviri(cfg, files, daytime="day"):
+    for filename in files:
+        seviri_obj, fci_obj = read_matchupdata_seviri_nc(cfg, filename)
+        remove_matched_nodata(cfg, seviri_obj, fci_obj)
+        #thin_matchupdata_seviri(seviri_obj, fci_obj)
+        sub_dir = filename.split("/")[-2]
+        fout = f"{os.path.dirname(filename)}/matchup_{daytime}_{os.path.basename(filename)}.h5".replace(".nc","")
+        print(f"Writing file {fout}")
+        write_matchupdata(fout, seviri_obj, fci_obj)
 
-def cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj):
-    use = get_data_to_use_cfg(cfg, n19_obj, viirs_obj)
-    cut_matched_data_according_to_use(cfg, n19_obj, viirs_obj, use)
+            
+def read_matchupdata_seviri_nc(cfg, filename):
+    seviri_obj = Lvl1cObj(cfg, instrument="seviri")
+    fci_obj = Lvl1cObj(cfg, instrument="seviri")
 
-
-def cut_matched_data_according_to_use(cfg, n19_obj, viirs_obj, use):
-
-    for var in n19_obj.channels:
-        if n19_obj.channels[var] is not None:
-            n19_obj.channels[var] = n19_obj.channels[var][use]
-    for var in viirs_obj.channels:
-        if viirs_obj.channels[var] is not None:
-            viirs_obj.channels[var] = viirs_obj.channels[var][use]
-    for var in viirs_obj.data:
-        viirs_obj.data[var] = viirs_obj.data[var][use]
-
-
-def read_matchupdata(cfg, filename):
-    n19_obj = Lvl1cObj(cfg)
-    viirs_obj = Lvl1cObj(cfg)
-
-    n19_var_list = [channel for channel in list(n19_obj.channels.keys())
-                    if channel in cfg.channel_list] + ["sunzenith", "satzenith"]
-    with h5py.File(filename, 'r') as match_fh:
+    seviri_var_list = [channel for channel in list(seviri_obj.channels.keys())
+                       if channel in cfg.channel_list] + ["sunzenith", "satzenith"]
+    with netCDF4.Dataset(filename, 'r', format='NETCDF4') as match_fh:
         for channel in cfg.channel_list + ["sunzenith", "satzenith"]:
-            viirs_obj.channels[channel] = match_fh["viirs_{:s}".format(channel)][...]
-            viirs_obj.channels[channel] = np.ma.masked_array(
-                viirs_obj.channels[channel], mask=viirs_obj.channels[channel] < 0)
-            if channel in n19_var_list:
-                n19_obj.channels[channel] = match_fh["avhrr_{:s}".format(channel)][...]
-                n19_obj.channels[channel] = np.ma.masked_array(
-                    n19_obj.channels[channel], mask=n19_obj.channels[channel] < 0)
-        viirs_obj.data["abs_time_diff_s"] = match_fh["abs_time_diff_s"][...]
-        viirs_obj.data["distance_between_pixels_m"] = match_fh["distance_between_pixels_m"][...]
-    cut_matched_data_according_to_cfg(cfg, n19_obj, viirs_obj)
-    return n19_obj, viirs_obj
-
+            fci_obj.channels[channel] = match_fh[FCI_DICT[channel]][:,:].ravel()
+            fci_obj.channels[channel] = np.ma.masked_array(
+                fci_obj.channels[channel], mask=fci_obj.channels[channel] < 0)
+            if channel in seviri_var_list:
+                seviri_obj.channels[channel] = match_fh[SEVIRI_DICT[channel]][:,:].ravel()
+                seviri_obj.channels[channel] = np.ma.masked_array(
+                    seviri_obj.channels[channel], mask=seviri_obj.channels[channel] < 0)
+        fci_obj.data["abs_time_diff_s"] = np.zeros(fci_obj.channels[channel].shape)
+        fci_obj.data["distance_between_pixels_m"] = np.zeros(fci_obj.channels[channel].shape)
+    cut_matched_data_according_to_cfg(cfg, seviri_obj, fci_obj)
+    return seviri_obj, fci_obj
 
 if __name__ == '__main__':
     pass
